@@ -1,0 +1,5045 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AKS Smart Schedule v7 — May 2026</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root {
+  --bg-base: #0f1115;
+  --bg-panel: #181b22;
+  --bg-elev: #21252e;
+  --bg-hover: #2a2f3a;
+  --line: #2c313c;
+  --text-pri: #e8eaee;
+  --text-sec: #9ba3af;
+  --text-mut: #6b7280;
+  --accent: #f59e0b;
+  --ok: #22c55e;
+  --warn: #f59e0b;
+  --bad: #ef4444;
+
+  --ac-pc12:    #5eead4;
+  --ac-ex:      #c4b5fd;
+  --ac-exf:     #8b5cf6;
+  --ac-amphib:  #fdba74;
+  --ac-beaver:  #86efac;
+  --ac-c206:    #fde047;
+  --ac-c206x:   #facc15;
+  --ac-pc12x:   #f9a8d4;
+  --ac-senior:  #94a3b8;
+  --ac-off:     #1f2330;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg-base);
+  color: var(--text-pri);
+  font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13px;
+  margin: 0;
+  min-height: 100vh;
+}
+.mono { font-family: 'JetBrains Mono', 'Menlo', monospace; }
+
+.tabs { display: flex; gap: 0; border-bottom: 1px solid var(--line); }
+.tab {
+  padding: 10px 18px; cursor: pointer;
+  color: var(--text-sec); border-bottom: 2px solid transparent;
+  font-weight: 500; font-size: 13px; letter-spacing: 0.02em;
+  transition: all 0.15s;
+}
+.tab:hover { color: var(--text-pri); background: var(--bg-elev); }
+.tab.active {
+  color: var(--accent); border-bottom-color: var(--accent);
+  background: var(--bg-panel);
+}
+
+.cal-grid {
+  display: grid;
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  font-size: 11px;
+  width: max-content;
+  min-width: 100%;
+}
+.cal-row { display: contents; }
+.cal-cell {
+  background: var(--bg-panel);
+  padding: 4px 6px;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.cal-cell.name {
+  justify-content: flex-start;
+  font-weight: 500;
+  background: var(--bg-elev);
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  min-width: 170px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.cal-cell.name:hover { background: var(--bg-hover); color: var(--accent); }
+.cal-cell.day-header {
+  background: var(--bg-elev);
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  min-width: 32px;
+  flex-direction: column;
+  padding: 6px 4px;
+  font-size: 10px;
+}
+.cal-cell.day-header.weekend { color: var(--accent); }
+.cal-cell.corner {
+  position: sticky;
+  left: 0;
+  top: 0;
+  z-index: 3;
+  background: var(--bg-elev);
+  min-width: 170px;
+}
+.cal-cell.day-cell {
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 600;
+  color: rgba(0,0,0,0.7);
+  letter-spacing: 0.05em;
+}
+.cal-cell.day-cell:hover { outline: 2px solid var(--accent); outline-offset: -2px; z-index: 4; }
+.cal-cell.day-cell.OFF       { background: var(--ac-off); color: var(--text-mut); }
+.cal-cell.day-cell.SENIOR    { background: var(--ac-senior); }
+.cal-cell.day-cell.PC12      { background: var(--ac-pc12); }
+.cal-cell.day-cell.EXTRA_PC12{ background: var(--ac-pc12x); }
+.cal-cell.day-cell.EX_CARAVAN{ background: var(--ac-ex); }
+.cal-cell.day-cell.EX_CARAVAN_FLOATER { background: var(--ac-exf); color: white; }
+.cal-cell.day-cell.AMPHIB_CARAVAN { background: var(--ac-amphib); }
+.cal-cell.day-cell.BEAVER    { background: var(--ac-beaver); }
+.cal-cell.day-cell.C206      { background: var(--ac-c206); }
+.cal-cell.day-cell.EXTRA_206 { background: var(--ac-c206x); }
+.cal-cell.day-cell.UNKNOWN   { background: #ef4444; color: white; }
+
+.legend-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 3px; font-size: 11px; }
+.legend-swatch { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+
+.panel { background: var(--bg-panel); border: 1px solid var(--line); border-radius: 4px; }
+.btn {
+  background: var(--bg-elev); color: var(--text-pri); border: 1px solid var(--line);
+  padding: 7px 14px; border-radius: 3px; font-size: 12px; font-weight: 500;
+  cursor: pointer; transition: all 0.15s;
+}
+.btn:hover { background: var(--bg-hover); border-color: var(--accent); }
+.btn-primary { background: var(--accent); color: #0f1115; border-color: var(--accent); }
+.btn-primary:hover { background: #fbbf24; }
+
+.status-ok   { color: var(--ok); }
+.status-warn { color: var(--warn); }
+.status-bad  { color: var(--bad); }
+.tag-ok   { background: rgba(34,197,94,0.15); color: var(--ok); padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; }
+.tag-warn { background: rgba(245,158,11,0.15); color: var(--warn); padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; }
+.tag-bad  { background: rgba(239,68,68,0.15); color: var(--bad); padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; }
+
+.modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 50; padding: 20px; }
+.modal-bg.show { display: flex; }
+.modal { background: var(--bg-panel); border: 1px solid var(--line); border-radius: 6px; max-width: 720px; max-height: 85vh; overflow: auto; padding: 24px; width: 100%; }
+
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; padding: 8px 12px; background: var(--bg-elev); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-sec); border-bottom: 1px solid var(--line); }
+td { padding: 8px 12px; border-bottom: 1px solid var(--line); font-size: 12px; }
+tr:hover td { background: var(--bg-elev); }
+
+select, input[type="text"], input[type="date"], input[type="number"] {
+  background: var(--bg-base); color: var(--text-pri); border: 1px solid var(--line);
+  padding: 7px 10px; border-radius: 3px; font-size: 12px; min-width: 160px;
+}
+select:focus, input:focus { outline: none; border-color: var(--accent); }
+label { font-size: 11px; color: var(--text-sec); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; display: block; margin-bottom: 4px; }
+
+.scroll-x { overflow-x: auto; }
+.scroll-x::-webkit-scrollbar { height: 8px; }
+.scroll-x::-webkit-scrollbar-track { background: var(--bg-base); }
+.scroll-x::-webkit-scrollbar-thumb { background: var(--bg-hover); border-radius: 4px; }
+
+.kpi { background: var(--bg-elev); border: 1px solid var(--line); border-radius: 4px; padding: 14px 16px; }
+.kpi-label { font-size: 10px; color: var(--text-sec); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
+.kpi-value { font-size: 22px; font-weight: 700; margin-top: 4px; font-family: 'JetBrains Mono', monospace; }
+.kpi-sub { font-size: 11px; color: var(--text-mut); margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<div id="app" class="min-h-screen">
+
+  <!-- Header -->
+  <div style="background: var(--bg-panel); border-bottom: 1px solid var(--line);">
+    <div class="px-6 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <div>
+          <div style="font-size: 11px; color: var(--text-mut); letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600;">Alaska Seaplanes</div>
+          <div style="font-size: 17px; font-weight: 700; letter-spacing: -0.01em;">Smart Schedule <span style="color: var(--accent);">v7</span></div>
+        </div>
+        <div class="mono" style="color: var(--text-mut); font-size: 11px; padding-left: 16px; border-left: 1px solid var(--line);">
+          <div id="hdr-month">May 2026</div>
+          <div id="hdr-stats">— pilots / — legs</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <label style="margin-bottom: 0;" class="btn cursor-pointer">
+          ⬆ Flight Log
+          <input type="file" id="upload-flightlog" accept=".xlsx,.xls,.csv" hidden>
+        </label>
+        <label style="margin-bottom: 0;" class="btn cursor-pointer">
+          ⬆ Schedule JSON
+          <input type="file" id="upload-data" accept=".json" hidden>
+        </label>
+        <button class="btn" onclick="exportData()">⬇ Export</button>
+      </div>
+    </div>
+    <div class="tabs px-6">
+      <div class="tab active" data-tab="calendar">CALENDAR</div>
+      <div class="tab" data-tab="pilots">PILOTS</div>
+      <div class="tab" data-tab="dayoff">DAY-OFF ANALYZER</div>
+      <div class="tab" data-tab="analytics">ANALYTICS</div>
+      <div class="tab" data-tab="data">DATA</div>
+    </div>
+  </div>
+
+  <!-- Tab content -->
+  <div id="tab-calendar" class="tab-content p-6">
+    <div class="flex items-center gap-3 mb-4 flex-wrap">
+      <div class="legend-chip"><span class="legend-swatch" style="background: var(--ac-pc12);"></span>PC-12</div>
+      <div class="legend-chip"><span class="legend-swatch" style="background: var(--ac-pc12x);"></span>Extra PC-12</div>
+      <div class="legend-chip"><span class="legend-swatch" style="background: var(--ac-ex);"></span>EX Caravan</div>
+      <div class="legend-chip"><span class="legend-swatch" style="background: var(--ac-exf);"></span>EX Floater</div>
+      <div class="legend-chip"><span class="legend-swatch" style="background: var(--ac-amphib);"></span>Amphib</div>
+      <div class="legend-chip"><span class="legend-swatch" style="background: var(--ac-beaver);"></span>Beaver</div>
+      <div class="legend-chip"><span class="legend-swatch" style="background: var(--ac-c206);"></span>C-206</div>
+      <div class="legend-chip"><span class="legend-swatch" style="background: var(--ac-senior);"></span>Senior</div>
+      <div class="legend-chip"><span class="legend-swatch" style="background: var(--ac-off);"></span>Off</div>
+    </div>
+    <div class="scroll-x panel">
+      <div id="cal-grid-host"></div>
+    </div>
+  </div>
+
+  <div id="tab-pilots" class="tab-content p-6 hidden">
+    <div class="panel p-4">
+      <div id="pilots-table-host"></div>
+    </div>
+  </div>
+
+  <div id="tab-dayoff" class="tab-content p-6 hidden">
+    <div class="grid grid-cols-3 gap-4">
+      <div class="panel p-4 col-span-1">
+        <h3 style="font-size: 13px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-sec); font-weight: 600; margin-bottom: 12px;">Request Day(s) Off</h3>
+        <div class="mb-3">
+          <label>Pilot</label>
+          <select id="do-pilot" style="width: 100%;"></select>
+        </div>
+        <div class="mb-3">
+          <label>Start date</label>
+          <input type="date" id="do-start" min="2026-05-01" max="2026-05-31" value="2026-05-15" style="width: 100%;">
+        </div>
+        <div class="mb-3">
+          <label>End date</label>
+          <input type="date" id="do-end" min="2026-05-01" max="2026-05-31" value="2026-05-15" style="width: 100%;">
+        </div>
+        <div class="mb-3">
+          <label>Reason (optional)</label>
+          <input type="text" id="do-reason" placeholder="vacation / personal / appt" style="width: 100%;">
+        </div>
+        <button class="btn btn-primary w-full" onclick="analyzeDayOff()">Analyze coverage</button>
+      </div>
+      <div class="panel p-4 col-span-2">
+        <h3 style="font-size: 13px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-sec); font-weight: 600; margin-bottom: 12px;">Coverage Analysis</h3>
+        <div id="do-results">
+          <div style="color: var(--text-mut); font-size: 12px;">Pick a pilot and date range, then click Analyze. We'll check each requested day against scheduled coverage and flag whether it's a clean swap, a base-pay extra-day cover, or a real coverage gap.</div>
+        </div>
+      </div>
+    </div>
+    <div class="panel p-4 mt-4">
+      <h3 style="font-size: 13px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-sec); font-weight: 600; margin-bottom: 8px;">Approved Day-Off Requests</h3>
+      <div id="do-approved-list" class="text-xs" style="color: var(--text-mut);">No requests logged yet. Approved requests will accumulate here for the month.</div>
+    </div>
+  </div>
+
+  <div id="tab-analytics" class="tab-content p-6 hidden">
+    <div id="analytics-host"></div>
+  </div>
+
+  <div id="tab-data" class="tab-content p-6 hidden">
+    <div class="panel p-4">
+      <h3 style="font-size: 13px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-sec); font-weight: 600; margin-bottom: 12px;">Data Status</h3>
+      <div id="data-status"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Pilot/Day detail modal -->
+<div class="modal-bg" id="detail-modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="detail-modal-content"></div>
+</div>
+
+<!-- Embedded initial dataset -->
+<script type="application/json" id="initial-data">
+{
+  "version": "7.0",
+  "generated": "2026-04-29 18:44",
+  "month": "May 2026",
+  "year": 2026,
+  "month_num": 5,
+  "fleet": {
+    "N721KP": {
+      "type": "PC12",
+      "cert": "AirEx"
+    },
+    "N722KP": {
+      "type": "PC12",
+      "cert": "AirEx"
+    },
+    "N724KP": {
+      "type": "PC12",
+      "cert": "AirEx"
+    },
+    "N726KP": {
+      "type": "PC12",
+      "cert": "AirEx"
+    },
+    "N753KP": {
+      "type": "SUPERVAN",
+      "cert": "AirEx",
+      "engine": "Garrett"
+    },
+    "N754KP": {
+      "type": "SUPERVAN",
+      "cert": "AirEx",
+      "engine": "Garrett"
+    },
+    "N755KP": {
+      "type": "SUPERVAN",
+      "cert": "AirEx",
+      "engine": "Garrett"
+    },
+    "N336JP": {
+      "type": "EX_CARAVAN",
+      "cert": "AirEx",
+      "icing": "TKS"
+    },
+    "N438JP": {
+      "type": "EX_CARAVAN",
+      "cert": "AirEx",
+      "icing": "TKS"
+    },
+    "N450KP": {
+      "type": "EX_CARAVAN",
+      "cert": "AirEx"
+    },
+    "N264KP": {
+      "type": "AMPHIB_CARAVAN",
+      "cert": "AirEx"
+    },
+    "N265KP": {
+      "type": "AMPHIB_CARAVAN",
+      "cert": "AirEx"
+    },
+    "N4794C": {
+      "type": "BEAVER",
+      "cert": "Kalinin"
+    },
+    "N743KP": {
+      "type": "BEAVER",
+      "cert": "Kalinin"
+    },
+    "N777DH": {
+      "type": "BEAVER",
+      "cert": "Kalinin"
+    },
+    "N60TF": {
+      "type": "BEAVER",
+      "cert": "Kalinin",
+      "note": "separate qual"
+    },
+    "N748KP": {
+      "type": "AMPHIB_206",
+      "cert": "Kalinin"
+    },
+    "N749KP": {
+      "type": "AMPHIB_206",
+      "cert": "Kalinin"
+    }
+  },
+  "pilots": {
+    "Jordan Allen": {
+      "schedule": {},
+      "quals": {
+        "N721KP": "IFR",
+        "N722KP": "IFR",
+        "N726KP": "IFR",
+        "N724KP": "IFR"
+      }
+    },
+    "Will Mathews": {
+      "schedule": {
+        "1": "EX_CARAVAN",
+        "2": "OFF",
+        "3": "OFF",
+        "4": "EX_CARAVAN",
+        "5": "EX_CARAVAN",
+        "6": "EX_CARAVAN",
+        "7": "OFF",
+        "8": "OFF",
+        "9": "EX_CARAVAN",
+        "10": "EX_CARAVAN",
+        "11": "EX_CARAVAN",
+        "12": "EX_CARAVAN",
+        "13": "OFF",
+        "14": "OFF",
+        "15": "OFF",
+        "16": "EX_CARAVAN",
+        "17": "EX_CARAVAN",
+        "18": "EX_CARAVAN",
+        "19": "EX_CARAVAN",
+        "20": "OFF",
+        "21": "OFF",
+        "22": "OFF",
+        "23": "EX_CARAVAN",
+        "24": "EX_CARAVAN",
+        "25": "EX_CARAVAN",
+        "26": "EX_CARAVAN",
+        "27": "OFF",
+        "28": "OFF",
+        "29": "OFF",
+        "30": "EX_CARAVAN",
+        "31": "EX_CARAVAN"
+      },
+      "quals": {}
+    },
+    "Dave Cambel": {
+      "schedule": {
+        "1": "OFF",
+        "2": "OFF",
+        "3": "OFF",
+        "4": "OFF",
+        "5": "OFF",
+        "6": "OFF",
+        "7": "OFF",
+        "8": "OFF",
+        "9": "OFF",
+        "10": "OFF",
+        "11": "OFF",
+        "12": "OFF",
+        "13": "OFF",
+        "14": "OFF",
+        "15": {
+          "a": "BEAVER",
+          "m": "G"
+        },
+        "16": {
+          "a": "BEAVER",
+          "m": "G"
+        },
+        "17": {
+          "a": "BEAVER",
+          "m": "G"
+        },
+        "18": "BEAVER",
+        "19": "BEAVER",
+        "20": "OFF",
+        "21": "OFF",
+        "22": "OFF",
+        "23": "BEAVER",
+        "24": "BEAVER",
+        "25": "BEAVER",
+        "26": "BEAVER",
+        "27": "OFF",
+        "28": "OFF",
+        "29": "OFF",
+        "30": "BEAVER",
+        "31": "BEAVER"
+      },
+      "quals": {}
+    },
+    "Jacob Forsythe": {
+      "schedule": {},
+      "quals": {
+        "SUPERVAN_753_754_755": "IFR",
+        "N450KP": "IFR",
+        "EX_438_336": "IFR"
+      }
+    },
+    "Cory Kunjara": {
+      "schedule": {
+        "1": "C206",
+        "2": "OFF",
+        "3": "OFF",
+        "4": "C206",
+        "5": "C206",
+        "6": "C206",
+        "7": "C206",
+        "8": "C206",
+        "9": "OFF",
+        "10": "OFF",
+        "11": "C206",
+        "12": "C206",
+        "13": "C206",
+        "14": "C206",
+        "15": "C206",
+        "16": "OFF",
+        "17": "OFF",
+        "18": "OFF",
+        "19": "C206",
+        "20": "C206",
+        "21": "C206",
+        "22": "C206",
+        "23": "C206",
+        "24": "OFF",
+        "25": "OFF",
+        "26": "OFF",
+        "27": "C206",
+        "28": "C206",
+        "29": "C206",
+        "30": "C206",
+        "31": "OFF"
+      },
+      "quals": {
+        "AMPHIB_206": true,
+        "BEAVER_GROUP": true,
+        "BEAVER_60TF": true,
+        "PACK_CREEK": true,
+        "NORRIS_LAKE": true
+      }
+    },
+    "Bennett Carlson": {
+      "schedule": {},
+      "quals": {
+        "AMPHIB_206": true,
+        "PACK_CREEK": true,
+        "NORRIS_LAKE": true
+      }
+    },
+    "Ian Hasegawa": {
+      "schedule": {
+        "1": "OFF",
+        "2": "PC12",
+        "3": "PC12",
+        "4": "PC12",
+        "5": "PC12",
+        "6": "PC12",
+        "7": "OFF",
+        "8": "OFF",
+        "9": "PC12",
+        "10": "PC12",
+        "11": "PC12",
+        "12": "PC12",
+        "13": "PC12",
+        "14": "OFF",
+        "15": "OFF",
+        "16": "PC12",
+        "17": "PC12",
+        "18": "PC12",
+        "19": "PC12",
+        "20": "PC12",
+        "21": "OFF",
+        "22": "OFF",
+        "23": "PC12",
+        "24": "PC12",
+        "25": "PC12",
+        "26": "OFF",
+        "27": "OFF",
+        "28": "OFF",
+        "29": "PC12",
+        "30": "PC12",
+        "31": "EXTRA_PC12"
+      },
+      "quals": {
+        "N721KP": "IFR",
+        "N722KP": "IFR",
+        "N724KP": "IFR",
+        "SUPERVAN_753_754_755": "IFR",
+        "N450KP": "IFR",
+        "EX_438_336": "IFR"
+      }
+    },
+    "Jake Forsythe": {
+      "schedule": {
+        "1": "OFF",
+        "2": "EX_CARAVAN",
+        "3": "EX_CARAVAN",
+        "4": "EX_CARAVAN",
+        "5": "EX_CARAVAN",
+        "6": "EX_CARAVAN",
+        "7": "EX_CARAVAN",
+        "8": "EX_CARAVAN",
+        "9": "EX_CARAVAN",
+        "10": "EX_CARAVAN",
+        "11": "EX_CARAVAN",
+        "12": "OFF",
+        "13": "OFF",
+        "14": "OFF",
+        "15": "OFF",
+        "16": "OFF",
+        "17": "OFF",
+        "18": "OFF",
+        "19": "OFF",
+        "20": "OFF",
+        "21": "OFF",
+        "22": "EX_CARAVAN",
+        "23": "EX_CARAVAN",
+        "24": "EX_CARAVAN",
+        "25": "OFF",
+        "26": "OFF",
+        "27": "OFF",
+        "28": "EX_CARAVAN",
+        "29": "EX_CARAVAN",
+        "30": "EX_CARAVAN",
+        "31": "EX_CARAVAN"
+      },
+      "quals": {
+        "SUPERVAN_753_754_755": "IFR",
+        "N450KP": "IFR",
+        "EX_438_336": "IFR"
+      }
+    },
+    "Brian Yap": {
+      "schedule": {
+        "1": "EX_CARAVAN",
+        "2": "OFF",
+        "3": "OFF",
+        "4": "EX_CARAVAN",
+        "5": "EX_CARAVAN",
+        "6": "EX_CARAVAN",
+        "7": "EX_CARAVAN",
+        "8": "EX_CARAVAN",
+        "9": "OFF",
+        "10": "OFF",
+        "11": "EX_CARAVAN",
+        "12": "EX_CARAVAN",
+        "13": "EX_CARAVAN",
+        "14": "EX_CARAVAN",
+        "15": "EX_CARAVAN",
+        "16": "OFF",
+        "17": "OFF",
+        "18": "OFF",
+        "19": "OFF",
+        "20": "EX_CARAVAN",
+        "21": "EX_CARAVAN",
+        "22": "EX_CARAVAN",
+        "23": "EX_CARAVAN",
+        "24": "EX_CARAVAN",
+        "25": "EX_CARAVAN",
+        "26": "OFF",
+        "27": "OFF",
+        "28": "OFF",
+        "29": "EX_CARAVAN",
+        "30": "EX_CARAVAN",
+        "31": "EX_CARAVAN"
+      },
+      "quals": {
+        "N450KP": "VFR",
+        "EX_438_336": "VFR"
+      }
+    },
+    "Gabe Aburto": {
+      "schedule": {
+        "1": "PC12",
+        "2": "OFF",
+        "3": "OFF",
+        "4": "PC12",
+        "5": "PC12",
+        "6": "PC12",
+        "7": "PC12",
+        "8": "PC12",
+        "9": "OFF",
+        "10": "OFF",
+        "11": "PC12",
+        "12": "PC12",
+        "13": "PC12",
+        "14": "PC12",
+        "15": "PC12",
+        "16": "OFF",
+        "17": "OFF",
+        "18": "PC12",
+        "19": "PC12",
+        "20": "PC12",
+        "21": "PC12",
+        "22": "EX_CARAVAN",
+        "23": "PC12",
+        "24": "OFF",
+        "25": "OFF",
+        "26": "OFF",
+        "27": "EX_CARAVAN",
+        "28": "PC12",
+        "29": "EX_CARAVAN",
+        "30": "PC12",
+        "31": "EXTRA_PC12"
+      },
+      "quals": {
+        "N721KP": "IFR",
+        "N722KP": "IFR",
+        "N724KP": "IFR",
+        "SUPERVAN_753_754_755": "IFR",
+        "N450KP": "IFR",
+        "EX_438_336": "IFR"
+      }
+    },
+    "Justin Hansen": {
+      "schedule": {
+        "1": "PC12",
+        "2": "OFF",
+        "3": "OFF",
+        "4": "OFF",
+        "5": "OFF",
+        "6": "OFF",
+        "7": "OFF",
+        "8": "OFF",
+        "9": "OFF",
+        "10": "OFF",
+        "11": "OFF",
+        "12": "PC12",
+        "13": "PC12",
+        "14": "PC12",
+        "15": "PC12",
+        "16": "PC12",
+        "17": "PC12",
+        "18": "PC12",
+        "19": "PC12",
+        "20": "PC12",
+        "21": "PC12",
+        "22": "OFF",
+        "23": "OFF",
+        "24": "OFF",
+        "25": "OFF",
+        "26": "PC12",
+        "27": "PC12",
+        "28": "PC12",
+        "29": "PC12",
+        "30": "OFF",
+        "31": "OFF"
+      },
+      "quals": {
+        "N721KP": "IFR",
+        "N722KP": "IFR",
+        "N726KP": "IFR",
+        "N724KP": "IFR",
+        "SUPERVAN_753_754_755": "IFR",
+        "EX_438_336": "IFR",
+        "FORKLIFT": "Yes"
+      }
+    },
+    "Jason Gray": {
+      "schedule": {
+        "1": "OFF",
+        "2": "OFF",
+        "3": "C206",
+        "4": "C206",
+        "5": "C206",
+        "6": "C206",
+        "7": "OFF",
+        "8": "OFF",
+        "9": "C206",
+        "10": "C206",
+        "11": "C206",
+        "12": "C206",
+        "13": "C206",
+        "14": "OFF",
+        "15": "OFF",
+        "16": "C206",
+        "17": "C206",
+        "18": "C206",
+        "19": "C206",
+        "20": "C206",
+        "21": "OFF",
+        "22": "OFF",
+        "23": "OFF",
+        "24": "OFF",
+        "25": "C206",
+        "26": "C206",
+        "27": "C206",
+        "28": "C206",
+        "29": "OFF",
+        "30": "OFF",
+        "31": "OFF"
+      },
+      "quals": {
+        "BEAVER_GROUP": true,
+        "BEAVER_60TF": true,
+        "PACK_CREEK": true,
+        "NORRIS_LAKE": true
+      }
+    },
+    "Mikel Garmendia": {
+      "schedule": {},
+      "quals": {
+        "N724KP": "IFR",
+        "BEAVER_GROUP": true,
+        "BEAVER_60TF": true,
+        "PACK_CREEK": true,
+        "NORRIS_LAKE": true
+      }
+    },
+    "Wayne CIESIELSKI": {
+      "schedule": {},
+      "quals": {
+        "N724KP": "IFR"
+      }
+    },
+    "Gregg Hake": {
+      "schedule": {
+        "1": "SENIOR",
+        "2": "SENIOR",
+        "3": "SENIOR",
+        "4": "SENIOR",
+        "5": "SENIOR",
+        "6": "OFF",
+        "7": "OFF",
+        "8": "SENIOR",
+        "9": "SENIOR",
+        "10": "SENIOR",
+        "11": "SENIOR",
+        "12": "SENIOR",
+        "13": "OFF",
+        "14": "OFF",
+        "15": "SENIOR",
+        "16": "SENIOR",
+        "17": "SENIOR",
+        "18": "SENIOR",
+        "19": "SENIOR",
+        "20": "OFF",
+        "21": "OFF",
+        "22": "SENIOR",
+        "23": "SENIOR",
+        "24": "SENIOR",
+        "25": "SENIOR",
+        "26": "SENIOR",
+        "27": "OFF",
+        "28": "OFF",
+        "29": "SENIOR",
+        "30": "SENIOR",
+        "31": "OFF"
+      },
+      "quals": {
+        "N721KP": "IFR/Right Seat",
+        "N722KP": "IFR/Right Seat",
+        "N726KP": "IFR/Right Seat",
+        "N724KP": "IFR/Right Seat",
+        "SUPERVAN_753_754_755": "IFR",
+        "N450KP": "IFR",
+        "EX_438_336": "IFR",
+        "DRY_BAY": true,
+        "FORKLIFT": "Yes"
+      }
+    },
+    "Megan Trejo": {
+      "schedule": {
+        "1": "OFF",
+        "2": "BEAVER",
+        "3": "BEAVER",
+        "4": "BEAVER",
+        "5": "BEAVER",
+        "6": "BEAVER",
+        "7": "BEAVER",
+        "8": "BEAVER",
+        "9": "BEAVER",
+        "10": "BEAVER",
+        "11": "BEAVER",
+        "12": "OFF",
+        "13": "OFF",
+        "14": "OFF",
+        "15": "OFF",
+        "16": "OFF",
+        "17": "OFF",
+        "18": "OFF",
+        "19": "OFF",
+        "20": "OFF",
+        "21": "OFF",
+        "22": "BEAVER",
+        "23": "OFF",
+        "24": "OFF",
+        "25": "OFF",
+        "26": "BEAVER",
+        "27": "BEAVER",
+        "28": "BEAVER",
+        "29": "BEAVER",
+        "30": "OFF",
+        "31": "OFF"
+      },
+      "quals": {
+        "SUPERVAN_753_754_755": "IFR",
+        "AMPHIB_206": true,
+        "BEAVER_GROUP": true,
+        "BEAVER_60TF": true,
+        "PACK_CREEK": true,
+        "NORRIS_LAKE": true
+      }
+    },
+    "Justin Estergard": {
+      "schedule": {},
+      "quals": {
+        "SUPERVAN_753_754_755": "IFR",
+        "N450KP": "IFR",
+        "EX_438_336": "IFR",
+        "AMPHIB_CARAVAN": true,
+        "SEAPILOT": true,
+        "ELFIN_COVE": true
+      }
+    },
+    "Steven Schmitt": {
+      "schedule": {
+        "1": "EX_CARAVAN",
+        "2": "OFF",
+        "3": "OFF",
+        "4": "EX_CARAVAN",
+        "5": "EX_CARAVAN",
+        "6": "EX_CARAVAN",
+        "7": "EX_CARAVAN",
+        "8": "EX_CARAVAN",
+        "9": "OFF",
+        "10": "OFF",
+        "11": "EX_CARAVAN",
+        "12": "EX_CARAVAN",
+        "13": "EX_CARAVAN",
+        "14": "EX_CARAVAN",
+        "15": "EX_CARAVAN",
+        "16": "OFF",
+        "17": "OFF",
+        "18": "EX_CARAVAN",
+        "19": "EX_CARAVAN",
+        "20": "EX_CARAVAN",
+        "21": "EX_CARAVAN",
+        "22": "EX_CARAVAN",
+        "23": "OFF",
+        "24": "OFF",
+        "25": "EX_CARAVAN",
+        "26": "EX_CARAVAN",
+        "27": "EX_CARAVAN",
+        "28": "EX_CARAVAN",
+        "29": "OFF",
+        "30": "OFF",
+        "31": "OFF"
+      },
+      "quals": {
+        "N450KP": "VFR",
+        "EX_438_336": "VFR"
+      }
+    },
+    "Seth Downs": {
+      "schedule": {
+        "1": "SENIOR",
+        "2": "BEAVER",
+        "3": "OFF",
+        "4": "OFF",
+        "5": "SENIOR",
+        "6": "SENIOR",
+        "7": "SENIOR",
+        "8": "SENIOR",
+        "9": "BEAVER",
+        "10": "OFF",
+        "11": "OFF",
+        "12": "SENIOR",
+        "13": "SENIOR",
+        "14": "SENIOR",
+        "15": "SENIOR",
+        "16": "BEAVER",
+        "17": "OFF",
+        "18": "OFF",
+        "19": "SENIOR",
+        "20": "SENIOR",
+        "21": "SENIOR",
+        "22": "SENIOR",
+        "23": "BEAVER",
+        "24": "OFF",
+        "25": "OFF",
+        "26": "SENIOR",
+        "27": "SENIOR",
+        "28": "SENIOR",
+        "29": "SENIOR",
+        "30": "BEAVER",
+        "31": "OFF"
+      },
+      "quals": {
+        "SUPERVAN_753_754_755": "IFR",
+        "N450KP": "IFR",
+        "EX_438_336": "IFR",
+        "AMPHIB_206": true,
+        "AMPHIB_CARAVAN": true,
+        "BEAVER_GROUP": true,
+        "BEAVER_60TF": true,
+        "SEAPILOT": true,
+        "PACK_CREEK": true,
+        "ELFIN_COVE": true,
+        "FOREST_SERVICE": true,
+        "DRY_BAY": true,
+        "NORRIS_LAKE": true,
+        "FORKLIFT": "Yes"
+      }
+    },
+    "Jerry Stuart": {
+      "schedule": {
+        "1": "BEAVER",
+        "2": "OFF",
+        "3": "OFF",
+        "4": "OFF",
+        "5": "OFF",
+        "6": "OFF",
+        "7": "OFF",
+        "8": "OFF",
+        "9": "OFF",
+        "10": "OFF",
+        "11": "OFF",
+        "12": "BEAVER",
+        "13": "BEAVER",
+        "14": "BEAVER",
+        "15": "BEAVER",
+        "16": "BEAVER",
+        "17": "BEAVER",
+        "18": "BEAVER",
+        "19": "BEAVER",
+        "20": "BEAVER",
+        "21": "BEAVER",
+        "22": "OFF",
+        "23": "OFF",
+        "24": "OFF",
+        "25": "BEAVER",
+        "26": "BEAVER",
+        "27": "BEAVER",
+        "28": "BEAVER",
+        "29": "OFF",
+        "30": "OFF",
+        "31": "OFF"
+      },
+      "quals": {
+        "SUPERVAN_753_754_755": "IFR",
+        "N450KP": "IFR",
+        "EX_438_336": "IFR",
+        "BEAVER_GROUP": true,
+        "PACK_CREEK": true,
+        "NORRIS_LAKE": true
+      }
+    },
+    "Louis Hosticka": {
+      "schedule": {
+        "1": "OFF",
+        "2": "EX_CARAVAN",
+        "3": "EX_CARAVAN",
+        "4": "EX_CARAVAN",
+        "5": "EX_CARAVAN",
+        "6": "EX_CARAVAN",
+        "7": "EX_CARAVAN",
+        "8": "EX_CARAVAN",
+        "9": "EX_CARAVAN",
+        "10": "EX_CARAVAN",
+        "11": "EX_CARAVAN",
+        "12": "OFF",
+        "13": "OFF",
+        "14": "OFF",
+        "15": "OFF",
+        "16": "OFF",
+        "17": "OFF",
+        "18": "OFF",
+        "19": "OFF",
+        "20": "OFF",
+        "21": "OFF",
+        "22": "EX_CARAVAN",
+        "23": "OFF",
+        "24": "OFF",
+        "25": "OFF",
+        "26": "EX_CARAVAN",
+        "27": "EX_CARAVAN",
+        "28": "EX_CARAVAN",
+        "29": "EX_CARAVAN",
+        "30": "OFF",
+        "31": "OFF"
+      },
+      "quals": {
+        "SUPERVAN_753_754_755": "IFR",
+        "N450KP": "IFR",
+        "EX_438_336": "IFR"
+      }
+    },
+    "Justin E-gard": {
+      "schedule": {
+        "1": "OFF",
+        "2": "AMPHIB_CARAVAN",
+        "3": "AMPHIB_CARAVAN",
+        "4": "AMPHIB_CARAVAN",
+        "5": "AMPHIB_CARAVAN",
+        "6": "AMPHIB_CARAVAN",
+        "7": "AMPHIB_CARAVAN",
+        "8": "AMPHIB_CARAVAN",
+        "9": "AMPHIB_CARAVAN",
+        "10": "AMPHIB_CARAVAN",
+        "11": "AMPHIB_CARAVAN",
+        "12": "OFF",
+        "13": "OFF",
+        "14": "OFF",
+        "15": "OFF",
+        "16": "OFF",
+        "17": "OFF",
+        "18": "OFF",
+        "19": "OFF",
+        "20": "OFF",
+        "21": "OFF",
+        "22": "AMPHIB_CARAVAN",
+        "23": "OFF",
+        "24": "OFF",
+        "25": "OFF",
+        "26": "AMPHIB_CARAVAN",
+        "27": "AMPHIB_CARAVAN",
+        "28": "AMPHIB_CARAVAN",
+        "29": "AMPHIB_CARAVAN",
+        "30": "OFF",
+        "31": "OFF"
+      },
+      "quals": {}
+    },
+    "Mikel Garm": {
+      "schedule": {
+        "1": "C206",
+        "2": "C206",
+        "3": "C206",
+        "4": "C206",
+        "5": "OFF",
+        "6": "OFF",
+        "7": "C206",
+        "8": "C206",
+        "9": "C206",
+        "10": "C206",
+        "11": "C206",
+        "12": "OFF",
+        "13": "OFF",
+        "14": "C206",
+        "15": "C206",
+        "16": "C206",
+        "17": "C206",
+        "18": "C206",
+        "19": "OFF",
+        "20": "OFF",
+        "21": "OFF",
+        "22": "C206",
+        "23": "C206",
+        "24": "C206",
+        "25": "C206",
+        "26": "OFF",
+        "27": "OFF",
+        "28": "OFF",
+        "29": "C206",
+        "30": "C206",
+        "31": "C206"
+      },
+      "quals": {
+        "N724KP": "IFR",
+        "BEAVER_GROUP": true,
+        "BEAVER_60TF": true,
+        "PACK_CREEK": true,
+        "NORRIS_LAKE": true
+      }
+    },
+    "Sam Talarman": {
+      "schedule": {
+        "1": "OFF",
+        "2": "OFF",
+        "3": "EX_CARAVAN",
+        "4": "EX_CARAVAN",
+        "5": "EX_CARAVAN",
+        "6": "EX_CARAVAN",
+        "7": "EX_CARAVAN",
+        "8": "OFF",
+        "9": "OFF",
+        "10": "EX_CARAVAN",
+        "11": "EX_CARAVAN",
+        "12": "EX_CARAVAN",
+        "13": "EX_CARAVAN",
+        "14": "EX_CARAVAN",
+        "15": "OFF",
+        "16": "OFF",
+        "17": "EX_CARAVAN",
+        "18": "EX_CARAVAN",
+        "19": "EX_CARAVAN",
+        "20": "OFF",
+        "21": "OFF",
+        "22": "OFF",
+        "23": "EX_CARAVAN",
+        "24": "EX_CARAVAN",
+        "25": "EX_CARAVAN",
+        "26": "EX_CARAVAN",
+        "27": "OFF",
+        "28": "OFF",
+        "29": "OFF",
+        "30": "EX_CARAVAN",
+        "31": "EX_CARAVAN"
+      },
+      "quals": {
+        "N450KP": "IFR",
+        "EX_438_336": "IFR"
+      }
+    },
+    "Chuck Perkins": {
+      "schedule": {
+        "1": "AMPHIB_CARAVAN",
+        "2": "OFF",
+        "3": "OFF",
+        "4": "OFF",
+        "5": "OFF",
+        "6": "OFF",
+        "7": "OFF",
+        "8": "OFF",
+        "9": "OFF",
+        "10": "OFF",
+        "11": "OFF",
+        "12": "AMPHIB_CARAVAN",
+        "13": "AMPHIB_CARAVAN",
+        "14": "AMPHIB_CARAVAN",
+        "15": "AMPHIB_CARAVAN",
+        "16": "AMPHIB_CARAVAN",
+        "17": "AMPHIB_CARAVAN",
+        "18": "OFF",
+        "19": "OFF",
+        "20": "OFF",
+        "21": "AMPHIB_CARAVAN",
+        "22": "AMPHIB_CARAVAN",
+        "23": "AMPHIB_CARAVAN",
+        "24": "AMPHIB_CARAVAN",
+        "25": "OFF",
+        "26": "OFF",
+        "27": "OFF",
+        "28": "AMPHIB_CARAVAN",
+        "29": "AMPHIB_CARAVAN",
+        "30": "AMPHIB_CARAVAN",
+        "31": "AMPHIB_CARAVAN"
+      },
+      "quals": {
+        "AMPHIB_CARAVAN": true,
+        "BEAVER_GROUP": true,
+        "BEAVER_60TF": true,
+        "SEAPILOT": true,
+        "PACK_CREEK": true,
+        "ELFIN_COVE": true,
+        "FOREST_SERVICE": true,
+        "NORRIS_LAKE": true
+      }
+    },
+    "Eric Evans": {
+      "schedule": {
+        "1": "OFF",
+        "2": "BEAVER",
+        "3": "BEAVER",
+        "4": "BEAVER",
+        "5": "BEAVER",
+        "6": "BEAVER",
+        "7": "BEAVER",
+        "8": "BEAVER",
+        "9": "BEAVER",
+        "10": "BEAVER",
+        "11": "BEAVER",
+        "12": "OFF",
+        "13": "OFF",
+        "14": "OFF",
+        "15": "OFF",
+        "16": "OFF",
+        "17": "OFF",
+        "18": "OFF",
+        "19": "OFF",
+        "20": "OFF",
+        "21": "OFF",
+        "22": "BEAVER",
+        "23": "BEAVER",
+        "24": "BEAVER",
+        "25": "OFF",
+        "26": "OFF",
+        "27": "OFF",
+        "28": "BEAVER",
+        "29": "BEAVER",
+        "30": "BEAVER",
+        "31": "BEAVER"
+      },
+      "quals": {
+        "N721KP": "IFR/Right seat",
+        "N722KP": "IFR/Right seat",
+        "N726KP": "IFR/Right seat",
+        "N724KP": "IFR/Right seat",
+        "SUPERVAN_753_754_755": "IFR",
+        "N450KP": "IFR",
+        "EX_438_336": "IFR",
+        "DRY_BAY": true
+      }
+    },
+    "Pat Ford": {
+      "schedule": {
+        "1": "OFF",
+        "2": "OFF",
+        "3": "SENIOR",
+        "4": "SENIOR",
+        "5": "SENIOR",
+        "6": "SENIOR",
+        "7": "SENIOR",
+        "8": "OFF",
+        "9": "OFF",
+        "10": "SENIOR",
+        "11": "SENIOR",
+        "12": "SENIOR",
+        "13": "SENIOR",
+        "14": "SENIOR",
+        "15": "OFF",
+        "16": "OFF",
+        "17": "SENIOR",
+        "18": "SENIOR",
+        "19": "SENIOR",
+        "20": "SENIOR",
+        "21": "SENIOR",
+        "22": "OFF",
+        "23": "OFF",
+        "24": "SENIOR",
+        "25": "SENIOR",
+        "26": "SENIOR",
+        "27": "SENIOR",
+        "28": "SENIOR",
+        "29": "OFF",
+        "30": "OFF",
+        "31": "OFF"
+      },
+      "quals": {
+        "SUPERVAN_753_754_755": "IFR",
+        "N450KP": "IFR",
+        "EX_438_336": "IFR",
+        "AMPHIB_206": true,
+        "AMPHIB_CARAVAN": true,
+        "BEAVER_GROUP": true,
+        "BEAVER_60TF": true,
+        "SEAPILOT": true,
+        "PACK_CREEK": true,
+        "ELFIN_COVE": true,
+        "FOREST_SERVICE": true,
+        "DRY_BAY": true,
+        "NORRIS_LAKE": true,
+        "FORKLIFT": "Yes"
+      }
+    },
+    "Ben Reese": {
+      "schedule": {
+        "1": "EX_CARAVAN",
+        "2": "OFF",
+        "3": "OFF",
+        "4": "OFF",
+        "5": "OFF",
+        "6": "OFF",
+        "7": "OFF",
+        "8": "OFF",
+        "9": "OFF",
+        "10": "OFF",
+        "11": "OFF",
+        "12": "EX_CARAVAN",
+        "13": "EX_CARAVAN",
+        "14": "EX_CARAVAN",
+        "15": "EX_CARAVAN",
+        "16": "EX_CARAVAN",
+        "17": "EX_CARAVAN",
+        "18": "EX_CARAVAN",
+        "19": "EX_CARAVAN",
+        "20": "EX_CARAVAN",
+        "21": "EX_CARAVAN",
+        "22": "OFF",
+        "23": "EX_CARAVAN",
+        "24": "OFF",
+        "25": "OFF",
+        "26": "OFF",
+        "27": "EX_CARAVAN",
+        "28": "EX_CARAVAN",
+        "29": "EX_CARAVAN",
+        "30": "EX_CARAVAN",
+        "31": "OFF"
+      },
+      "quals": {
+        "SUPERVAN_753_754_755": "IFR",
+        "N450KP": "IFR",
+        "EX_438_336": "IFR"
+      }
+    },
+    "Wayne Ciesski": {
+      "schedule": {
+        "1": "AMPHIB_CARAVAN",
+        "2": "OFF",
+        "3": "OFF",
+        "4": "AMPHIB_CARAVAN",
+        "5": "AMPHIB_CARAVAN",
+        "6": "AMPHIB_CARAVAN",
+        "7": "OFF",
+        "8": "OFF",
+        "9": "OFF",
+        "10": "AMPHIB_CARAVAN",
+        "11": "AMPHIB_CARAVAN",
+        "12": "AMPHIB_CARAVAN",
+        "13": "AMPHIB_CARAVAN",
+        "14": "OFF",
+        "15": "OFF",
+        "16": "OFF",
+        "17": "AMPHIB_CARAVAN",
+        "18": "AMPHIB_CARAVAN",
+        "19": "AMPHIB_CARAVAN",
+        "20": "AMPHIB_CARAVAN",
+        "21": "OFF",
+        "22": "OFF",
+        "23": "OFF",
+        "24": "AMPHIB_CARAVAN",
+        "25": "AMPHIB_CARAVAN",
+        "26": "AMPHIB_CARAVAN",
+        "27": "AMPHIB_CARAVAN",
+        "28": "OFF",
+        "29": "OFF",
+        "30": "OFF",
+        "31": "OFF"
+      },
+      "quals": {}
+    },
+    "Dave Campbell": {
+      "schedule": {},
+      "quals": {
+        "BEAVER_GROUP": true,
+        "BEAVER_60TF": true,
+        "SEAPILOT": true,
+        "PACK_CREEK": true,
+        "ELFIN_COVE": true,
+        "NORRIS_LAKE": true
+      }
+    },
+    "Patrick Ford": {
+      "schedule": {},
+      "quals": {
+        "SUPERVAN_753_754_755": "IFR",
+        "N450KP": "IFR",
+        "EX_438_336": "IFR",
+        "AMPHIB_206": true,
+        "AMPHIB_CARAVAN": true,
+        "BEAVER_GROUP": true,
+        "BEAVER_60TF": true,
+        "SEAPILOT": true,
+        "PACK_CREEK": true,
+        "ELFIN_COVE": true,
+        "FOREST_SERVICE": true,
+        "DRY_BAY": true,
+        "NORRIS_LAKE": true,
+        "FORKLIFT": "Yes"
+      }
+    },
+    "Sean Kveum": {
+      "schedule": {
+        "1": "SENIOR",
+        "2": "OFF",
+        "3": "OFF",
+        "4": "SENIOR",
+        "5": "SENIOR",
+        "6": "SENIOR",
+        "7": "SENIOR",
+        "8": "SENIOR",
+        "9": "OFF",
+        "10": "OFF",
+        "11": "SENIOR",
+        "12": "SENIOR",
+        "13": "SENIOR",
+        "14": "SENIOR",
+        "15": "SENIOR",
+        "16": "OFF",
+        "17": "OFF",
+        "18": "SENIOR",
+        "19": "SENIOR",
+        "20": "SENIOR",
+        "21": "SENIOR",
+        "22": "SENIOR",
+        "23": "OFF",
+        "24": "OFF",
+        "25": "SENIOR",
+        "26": "SENIOR",
+        "27": "SENIOR",
+        "28": "SENIOR",
+        "29": "SENIOR",
+        "30": "OFF",
+        "31": "OFF"
+      },
+      "quals": {
+        "N721KP": "IFR/Right seat",
+        "N722KP": "IFR/Right Seat",
+        "N726KP": "IFR/Right Seat",
+        "N724KP": "IFR/Right Seat",
+        "SUPERVAN_753_754_755": "VFR",
+        "EX_438_336": "VFR",
+        "AMPHIB_206": true,
+        "AMPHIB_CARAVAN": true,
+        "BEAVER_GROUP": true,
+        "BEAVER_60TF": true,
+        "SEAPILOT": true,
+        "PACK_CREEK": true,
+        "ELFIN_COVE": true,
+        "FOREST_SERVICE": true,
+        "DRY_BAY": true,
+        "NORRIS_LAKE": true
+      }
+    },
+    "Hunter Sinclair": {
+      "schedule": {
+        "1": "AMPHIB_CARAVAN",
+        "2": "AMPHIB_CARAVAN",
+        "3": "C206",
+        "4": "AMPHIB_CARAVAN",
+        "5": "OFF",
+        "6": "OFF",
+        "7": "AMPHIB_CARAVAN",
+        "8": "AMPHIB_CARAVAN",
+        "9": "AMPHIB_CARAVAN",
+        "10": "C206",
+        "11": "AMPHIB_CARAVAN",
+        "12": "OFF",
+        "13": "OFF",
+        "14": "AMPHIB_CARAVAN",
+        "15": "AMPHIB_CARAVAN",
+        "16": "AMPHIB_CARAVAN",
+        "17": "C206",
+        "18": "AMPHIB_CARAVAN",
+        "19": "OFF",
+        "20": "OFF",
+        "21": "AMPHIB_CARAVAN",
+        "22": "AMPHIB_CARAVAN",
+        "23": "AMPHIB_CARAVAN",
+        "24": "C206",
+        "25": "AMPHIB_CARAVAN",
+        "26": "OFF",
+        "27": "OFF",
+        "28": "AMPHIB_CARAVAN",
+        "29": "AMPHIB_CARAVAN",
+        "30": "AMPHIB_CARAVAN",
+        "31": "OFF"
+      },
+      "quals": {
+        "SUPERVAN_753_754_755": "VFR",
+        "N450KP": "VFR",
+        "EX_438_336": "VFR",
+        "AMPHIB_206": true,
+        "AMPHIB_CARAVAN": true,
+        "BEAVER_GROUP": true,
+        "BEAVER_60TF": true,
+        "SEAPILOT": true,
+        "PACK_CREEK": true,
+        "ELFIN_COVE": true,
+        "FOREST_SERVICE": true,
+        "NORRIS_LAKE": true
+      }
+    },
+    "Ben Rees": {
+      "schedule": {},
+      "quals": {
+        "SUPERVAN_753_754_755": "IFR",
+        "N450KP": "IFR",
+        "EX_438_336": "IFR"
+      }
+    },
+    "Bennett Caralson": {
+      "schedule": {
+        "1": "OFF",
+        "2": "OFF",
+        "3": "BEAVER",
+        "4": "BEAVER",
+        "5": "C206",
+        "6": "BEAVER",
+        "7": "OFF",
+        "8": "OFF",
+        "9": "OFF",
+        "10": "BEAVER",
+        "11": "BEAVER",
+        "12": "C206",
+        "13": "BEAVER",
+        "14": "OFF",
+        "15": "OFF",
+        "16": "OFF",
+        "17": "BEAVER",
+        "18": "BEAVER",
+        "19": "C206",
+        "20": "BEAVER",
+        "21": "OFF",
+        "22": "OFF",
+        "23": "OFF",
+        "24": "BEAVER",
+        "25": "BEAVER",
+        "26": "C206",
+        "27": "BEAVER",
+        "28": "OFF",
+        "29": "OFF",
+        "30": "OFF",
+        "31": "OFF"
+      },
+      "quals": {}
+    },
+    "Dan Corson": {
+      "schedule": {
+        "1": {
+          "a": "SENIOR",
+          "m": "P"
+        },
+        "2": {
+          "a": "OFF",
+          "m": "Y"
+        },
+        "3": {
+          "a": "OFF",
+          "m": "B"
+        },
+        "4": {
+          "a": "SENIOR",
+          "m": "U"
+        },
+        "5": {
+          "a": "SENIOR",
+          "m": "S"
+        },
+        "6": "SENIOR",
+        "7": "SENIOR",
+        "8": "SENIOR",
+        "9": "OFF",
+        "10": "OFF",
+        "11": "SENIOR",
+        "12": "SENIOR",
+        "13": "SENIOR",
+        "14": "SENIOR",
+        "15": "SENIOR",
+        "16": "OFF",
+        "17": "OFF",
+        "18": "SENIOR",
+        "19": "SENIOR",
+        "20": "SENIOR",
+        "21": "SENIOR",
+        "22": "SENIOR",
+        "23": "OFF",
+        "24": "OFF",
+        "25": "SENIOR",
+        "26": "SENIOR",
+        "27": "SENIOR",
+        "28": "SENIOR",
+        "29": "SENIOR",
+        "30": "OFF",
+        "31": "OFF"
+      },
+      "quals": {
+        "AMPHIB_206": true,
+        "AMPHIB_CARAVAN": true,
+        "BEAVER_GROUP": true,
+        "BEAVER_60TF": true,
+        "SEAPILOT": true,
+        "PACK_CREEK": true,
+        "ELFIN_COVE": true,
+        "NORRIS_LAKE": true
+      }
+    },
+    "Nick Armstrong": {
+      "schedule": {
+        "1": "EX_CARAVAN",
+        "2": "OFF",
+        "3": "OFF",
+        "4": "EX_CARAVAN",
+        "5": "EX_CARAVAN",
+        "6": "EX_CARAVAN",
+        "7": "OFF",
+        "8": "OFF",
+        "9": "EX_CARAVAN",
+        "10": "EX_CARAVAN",
+        "11": "EX_CARAVAN",
+        "12": "EX_CARAVAN",
+        "13": "EX_CARAVAN",
+        "14": "OFF",
+        "15": "OFF",
+        "16": "OFF",
+        "17": "EX_CARAVAN",
+        "18": "EX_CARAVAN",
+        "19": "EX_CARAVAN",
+        "20": "EX_CARAVAN",
+        "21": "OFF",
+        "22": "OFF",
+        "23": "OFF",
+        "24": "EX_CARAVAN",
+        "25": "EX_CARAVAN",
+        "26": "EX_CARAVAN",
+        "27": "EX_CARAVAN",
+        "28": "OFF",
+        "29": "OFF",
+        "30": "OFF",
+        "31": "OFF"
+      },
+      "quals": {
+        "N450KP": "VFR",
+        "EX_438_336": "VFR"
+      }
+    },
+    "Zoe Doden": {
+      "schedule": {
+        "1": "OFF",
+        "2": "OFF",
+        "3": "BEAVER",
+        "4": "BEAVER",
+        "5": "OFF",
+        "6": "OFF",
+        "7": "OFF",
+        "8": "BEAVER",
+        "9": "BEAVER",
+        "10": "BEAVER",
+        "11": "BEAVER",
+        "12": "OFF",
+        "13": "OFF",
+        "14": "OFF",
+        "15": "BEAVER",
+        "16": "BEAVER",
+        "17": "BEAVER",
+        "18": "BEAVER",
+        "19": "OFF",
+        "20": "OFF",
+        "21": "OFF",
+        "22": "BEAVER",
+        "23": "BEAVER",
+        "24": "BEAVER",
+        "25": "BEAVER",
+        "26": "OFF",
+        "27": "OFF",
+        "28": "OFF",
+        "29": "BEAVER",
+        "30": "BEAVER",
+        "31": "BEAVER"
+      },
+      "quals": {}
+    },
+    "Adam Parker": {
+      "schedule": {},
+      "quals": {
+        "SUPERVAN_753_754_755": "IFR",
+        "EX_438_336": "IFR"
+      }
+    },
+    "Nick Swisher": {
+      "schedule": {
+        "1": "BEAVER",
+        "2": "OFF",
+        "3": "OFF",
+        "4": "BEAVER",
+        "5": "BEAVER",
+        "6": "BEAVER",
+        "7": "BEAVER",
+        "8": "BEAVER",
+        "9": "OFF",
+        "10": "OFF",
+        "11": "BEAVER",
+        "12": "BEAVER",
+        "13": "BEAVER",
+        "14": "BEAVER",
+        "15": "BEAVER",
+        "16": "OFF",
+        "17": "OFF",
+        "18": "BEAVER",
+        "19": "BEAVER",
+        "20": "BEAVER",
+        "21": "BEAVER",
+        "22": "BEAVER",
+        "23": "OFF",
+        "24": "OFF",
+        "25": "OFF",
+        "26": "BEAVER",
+        "27": "BEAVER",
+        "28": "BEAVER",
+        "29": "BEAVER",
+        "30": "OFF",
+        "31": "OFF"
+      },
+      "quals": {
+        "SUPERVAN_753_754_755": "IFR",
+        "N450KP": "IFR",
+        "EX_438_336": "IFR",
+        "BEAVER_GROUP": true,
+        "BEAVER_60TF": true,
+        "PACK_CREEK": true,
+        "DRY_BAY": true,
+        "NORRIS_LAKE": true
+      }
+    },
+    "Mathew Pennisi": {
+      "schedule": {},
+      "quals": {
+        "N721KP": "NOT crossed",
+        "N722KP": "IFR",
+        "N726KP": "IFR",
+        "N724KP": "IFR"
+      }
+    },
+    "Ian Fisk": {
+      "schedule": {},
+      "quals": {
+        "N721KP": "IFR/Right seat",
+        "N722KP": "IFR/Right seat",
+        "N726KP": "IFR/Right seat",
+        "N724KP": "IFR/Right seat",
+        "SUPERVAN_753_754_755": "IFR",
+        "EX_438_336": "IFR",
+        "DRY_BAY": true
+      }
+    },
+    "Gui Andrade": {
+      "schedule": {
+        "1": "OFF",
+        "2": "OFF",
+        "3": "OFF",
+        "4": {
+          "a": "PC12",
+          "m": "G"
+        },
+        "5": {
+          "a": "PC12",
+          "m": "G"
+        },
+        "6": {
+          "a": "PC12",
+          "m": "G"
+        },
+        "7": "OFF",
+        "8": "OFF",
+        "9": "OFF",
+        "10": "PC12",
+        "11": "PC12",
+        "12": "PC12",
+        "13": "PC12",
+        "14": "OFF",
+        "15": "OFF",
+        "16": "OFF",
+        "17": "PC12",
+        "18": "PC12",
+        "19": "PC12",
+        "20": "PC12",
+        "21": "OFF",
+        "22": "OFF",
+        "23": "OFF",
+        "24": "PC12",
+        "25": "PC12",
+        "26": "PC12",
+        "27": "PC12",
+        "28": "OFF",
+        "29": "OFF",
+        "30": "OFF",
+        "31": "OFF"
+      },
+      "quals": {}
+    }
+  },
+  "trainers_check_airmen": {
+    "Fisk, Ian": {
+      "Check Airmen": true,
+      "IOE": true,
+      "Training Pilots": true,
+      "PC-12": true,
+      "53/55": true,
+      "36/38JP": true
+    },
+    "Ford, Patrick": {
+      "Check Airmen": true,
+      "IOE": true,
+      "Training Pilots": true,
+      "53/55": true,
+      "36/38JP": true,
+      "Amphib 206": true,
+      "Amphib Caravan": true,
+      "DHC-2": true
+    },
+    "Hake, Gregg": {
+      "Check Airmen": true,
+      "IOE": true,
+      "Training Pilots": true,
+      "PC-12": true,
+      "53/55": true,
+      "36/38JP": true
+    },
+    "Kveum, Sean": {
+      "Check Airmen": true,
+      "IOE": true,
+      "Training Pilots": true,
+      "PC-12": true,
+      "53/55": true,
+      "36/38JP": true,
+      "Amphib 206": true,
+      "Amphib Caravan": true,
+      "DHC-2": true
+    },
+    "Parker, Adam": {
+      "Training Pilots": true,
+      "53/55": true,
+      "36/38JP": true
+    },
+    "Swisher, Nick": {
+      "Training Pilots": true,
+      "53/55": true,
+      "36/38JP": true
+    },
+    "Downs, Seth": {
+      "IOE": true,
+      "Training Pilots": true,
+      "53/55": true,
+      "36/38JP": true,
+      "Amphib 206": true,
+      "Amphib Caravan": true,
+      "DHC-2": true
+    },
+    "Sinclair, Hunter": {
+      "Training Pilots": true,
+      "Amphib 206": true,
+      "DHC-2": true
+    },
+    "Corson, Dan": {
+      "IOE": true,
+      "Training Pilots": true,
+      "Amphib 206": true,
+      "DHC-2": true
+    }
+  },
+  "monthly_schedule_raw": {
+    "Sean Kveum": {
+      "1": "SENIOR",
+      "2": "OFF",
+      "3": "OFF",
+      "4": "SENIOR",
+      "5": "SENIOR",
+      "6": "SENIOR",
+      "7": "SENIOR",
+      "8": "SENIOR",
+      "9": "OFF",
+      "10": "OFF",
+      "11": "SENIOR",
+      "12": "SENIOR",
+      "13": "SENIOR",
+      "14": "SENIOR",
+      "15": "SENIOR",
+      "16": "OFF",
+      "17": "OFF",
+      "18": "SENIOR",
+      "19": "SENIOR",
+      "20": "SENIOR",
+      "21": "SENIOR",
+      "22": "SENIOR",
+      "23": "OFF",
+      "24": "OFF",
+      "25": "SENIOR",
+      "26": "SENIOR",
+      "27": "SENIOR",
+      "28": "SENIOR",
+      "29": "SENIOR",
+      "30": "OFF",
+      "31": "OFF"
+    },
+    "Dan Corson": {
+      "1": {
+        "a": "SENIOR",
+        "m": "P"
+      },
+      "2": {
+        "a": "OFF",
+        "m": "Y"
+      },
+      "3": {
+        "a": "OFF",
+        "m": "B"
+      },
+      "4": {
+        "a": "SENIOR",
+        "m": "U"
+      },
+      "5": {
+        "a": "SENIOR",
+        "m": "S"
+      },
+      "6": "SENIOR",
+      "7": "SENIOR",
+      "8": "SENIOR",
+      "9": "OFF",
+      "10": "OFF",
+      "11": "SENIOR",
+      "12": "SENIOR",
+      "13": "SENIOR",
+      "14": "SENIOR",
+      "15": "SENIOR",
+      "16": "OFF",
+      "17": "OFF",
+      "18": "SENIOR",
+      "19": "SENIOR",
+      "20": "SENIOR",
+      "21": "SENIOR",
+      "22": "SENIOR",
+      "23": "OFF",
+      "24": "OFF",
+      "25": "SENIOR",
+      "26": "SENIOR",
+      "27": "SENIOR",
+      "28": "SENIOR",
+      "29": "SENIOR",
+      "30": "OFF",
+      "31": "OFF"
+    },
+    "Pat Ford": {
+      "1": "OFF",
+      "2": "OFF",
+      "3": "SENIOR",
+      "4": "SENIOR",
+      "5": "SENIOR",
+      "6": "SENIOR",
+      "7": "SENIOR",
+      "8": "OFF",
+      "9": "OFF",
+      "10": "SENIOR",
+      "11": "SENIOR",
+      "12": "SENIOR",
+      "13": "SENIOR",
+      "14": "SENIOR",
+      "15": "OFF",
+      "16": "OFF",
+      "17": "SENIOR",
+      "18": "SENIOR",
+      "19": "SENIOR",
+      "20": "SENIOR",
+      "21": "SENIOR",
+      "22": "OFF",
+      "23": "OFF",
+      "24": "SENIOR",
+      "25": "SENIOR",
+      "26": "SENIOR",
+      "27": "SENIOR",
+      "28": "SENIOR",
+      "29": "OFF",
+      "30": "OFF",
+      "31": "OFF"
+    },
+    "Gregg Hake": {
+      "1": "SENIOR",
+      "2": "SENIOR",
+      "3": "SENIOR",
+      "4": "SENIOR",
+      "5": "SENIOR",
+      "6": "OFF",
+      "7": "OFF",
+      "8": "SENIOR",
+      "9": "SENIOR",
+      "10": "SENIOR",
+      "11": "SENIOR",
+      "12": "SENIOR",
+      "13": "OFF",
+      "14": "OFF",
+      "15": "SENIOR",
+      "16": "SENIOR",
+      "17": "SENIOR",
+      "18": "SENIOR",
+      "19": "SENIOR",
+      "20": "OFF",
+      "21": "OFF",
+      "22": "SENIOR",
+      "23": "SENIOR",
+      "24": "SENIOR",
+      "25": "SENIOR",
+      "26": "SENIOR",
+      "27": "OFF",
+      "28": "OFF",
+      "29": "SENIOR",
+      "30": "SENIOR",
+      "31": "OFF"
+    },
+    "Seth Downs": {
+      "1": "SENIOR",
+      "2": "BEAVER",
+      "3": "OFF",
+      "4": "OFF",
+      "5": "SENIOR",
+      "6": "SENIOR",
+      "7": "SENIOR",
+      "8": "SENIOR",
+      "9": "BEAVER",
+      "10": "OFF",
+      "11": "OFF",
+      "12": "SENIOR",
+      "13": "SENIOR",
+      "14": "SENIOR",
+      "15": "SENIOR",
+      "16": "BEAVER",
+      "17": "OFF",
+      "18": "OFF",
+      "19": "SENIOR",
+      "20": "SENIOR",
+      "21": "SENIOR",
+      "22": "SENIOR",
+      "23": "BEAVER",
+      "24": "OFF",
+      "25": "OFF",
+      "26": "SENIOR",
+      "27": "SENIOR",
+      "28": "SENIOR",
+      "29": "SENIOR",
+      "30": "BEAVER",
+      "31": "OFF"
+    },
+    "Gabe Aburto": {
+      "1": "PC12",
+      "2": "OFF",
+      "3": "OFF",
+      "4": "PC12",
+      "5": "PC12",
+      "6": "PC12",
+      "7": "PC12",
+      "8": "PC12",
+      "9": "OFF",
+      "10": "OFF",
+      "11": "PC12",
+      "12": "PC12",
+      "13": "PC12",
+      "14": "PC12",
+      "15": "PC12",
+      "16": "OFF",
+      "17": "OFF",
+      "18": "PC12",
+      "19": "PC12",
+      "20": "PC12",
+      "21": "PC12",
+      "22": "EX_CARAVAN",
+      "23": "PC12",
+      "24": "OFF",
+      "25": "OFF",
+      "26": "OFF",
+      "27": "EX_CARAVAN",
+      "28": "PC12",
+      "29": "EX_CARAVAN",
+      "30": "PC12",
+      "31": "EXTRA_PC12"
+    },
+    "Ian Hasegawa": {
+      "1": "OFF",
+      "2": "PC12",
+      "3": "PC12",
+      "4": "PC12",
+      "5": "PC12",
+      "6": "PC12",
+      "7": "OFF",
+      "8": "OFF",
+      "9": "PC12",
+      "10": "PC12",
+      "11": "PC12",
+      "12": "PC12",
+      "13": "PC12",
+      "14": "OFF",
+      "15": "OFF",
+      "16": "PC12",
+      "17": "PC12",
+      "18": "PC12",
+      "19": "PC12",
+      "20": "PC12",
+      "21": "OFF",
+      "22": "OFF",
+      "23": "PC12",
+      "24": "PC12",
+      "25": "PC12",
+      "26": "OFF",
+      "27": "OFF",
+      "28": "OFF",
+      "29": "PC12",
+      "30": "PC12",
+      "31": "EXTRA_PC12"
+    },
+    "Gui Andrade": {
+      "1": "OFF",
+      "2": "OFF",
+      "3": "OFF",
+      "4": {
+        "a": "PC12",
+        "m": "G"
+      },
+      "5": {
+        "a": "PC12",
+        "m": "G"
+      },
+      "6": {
+        "a": "PC12",
+        "m": "G"
+      },
+      "7": "OFF",
+      "8": "OFF",
+      "9": "OFF",
+      "10": "PC12",
+      "11": "PC12",
+      "12": "PC12",
+      "13": "PC12",
+      "14": "OFF",
+      "15": "OFF",
+      "16": "OFF",
+      "17": "PC12",
+      "18": "PC12",
+      "19": "PC12",
+      "20": "PC12",
+      "21": "OFF",
+      "22": "OFF",
+      "23": "OFF",
+      "24": "PC12",
+      "25": "PC12",
+      "26": "PC12",
+      "27": "PC12",
+      "28": "OFF",
+      "29": "OFF",
+      "30": "OFF",
+      "31": "OFF"
+    },
+    "Justin Hansen": {
+      "1": "PC12",
+      "2": "OFF",
+      "3": "OFF",
+      "4": "OFF",
+      "5": "OFF",
+      "6": "OFF",
+      "7": "OFF",
+      "8": "OFF",
+      "9": "OFF",
+      "10": "OFF",
+      "11": "OFF",
+      "12": "PC12",
+      "13": "PC12",
+      "14": "PC12",
+      "15": "PC12",
+      "16": "PC12",
+      "17": "PC12",
+      "18": "PC12",
+      "19": "PC12",
+      "20": "PC12",
+      "21": "PC12",
+      "22": "OFF",
+      "23": "OFF",
+      "24": "OFF",
+      "25": "OFF",
+      "26": "PC12",
+      "27": "PC12",
+      "28": "PC12",
+      "29": "PC12",
+      "30": "OFF",
+      "31": "OFF"
+    },
+    "Nick Armstrong": {
+      "1": "EX_CARAVAN",
+      "2": "OFF",
+      "3": "OFF",
+      "4": "EX_CARAVAN",
+      "5": "EX_CARAVAN",
+      "6": "EX_CARAVAN",
+      "7": "OFF",
+      "8": "OFF",
+      "9": "EX_CARAVAN",
+      "10": "EX_CARAVAN",
+      "11": "EX_CARAVAN",
+      "12": "EX_CARAVAN",
+      "13": "EX_CARAVAN",
+      "14": "OFF",
+      "15": "OFF",
+      "16": "OFF",
+      "17": "EX_CARAVAN",
+      "18": "EX_CARAVAN",
+      "19": "EX_CARAVAN",
+      "20": "EX_CARAVAN",
+      "21": "OFF",
+      "22": "OFF",
+      "23": "OFF",
+      "24": "EX_CARAVAN",
+      "25": "EX_CARAVAN",
+      "26": "EX_CARAVAN",
+      "27": "EX_CARAVAN",
+      "28": "OFF",
+      "29": "OFF",
+      "30": "OFF",
+      "31": "OFF"
+    },
+    "Louis Hosticka": {
+      "1": "OFF",
+      "2": "EX_CARAVAN",
+      "3": "EX_CARAVAN",
+      "4": "EX_CARAVAN",
+      "5": "EX_CARAVAN",
+      "6": "EX_CARAVAN",
+      "7": "EX_CARAVAN",
+      "8": "EX_CARAVAN",
+      "9": "EX_CARAVAN",
+      "10": "EX_CARAVAN",
+      "11": "EX_CARAVAN",
+      "12": "OFF",
+      "13": "OFF",
+      "14": "OFF",
+      "15": "OFF",
+      "16": "OFF",
+      "17": "OFF",
+      "18": "OFF",
+      "19": "OFF",
+      "20": "OFF",
+      "21": "OFF",
+      "22": "EX_CARAVAN",
+      "23": "OFF",
+      "24": "OFF",
+      "25": "OFF",
+      "26": "EX_CARAVAN",
+      "27": "EX_CARAVAN",
+      "28": "EX_CARAVAN",
+      "29": "EX_CARAVAN",
+      "30": "OFF",
+      "31": "OFF"
+    },
+    "Jake Forsythe": {
+      "1": "OFF",
+      "2": "EX_CARAVAN",
+      "3": "EX_CARAVAN",
+      "4": "EX_CARAVAN",
+      "5": "EX_CARAVAN",
+      "6": "EX_CARAVAN",
+      "7": "EX_CARAVAN",
+      "8": "EX_CARAVAN",
+      "9": "EX_CARAVAN",
+      "10": "EX_CARAVAN",
+      "11": "EX_CARAVAN",
+      "12": "OFF",
+      "13": "OFF",
+      "14": "OFF",
+      "15": "OFF",
+      "16": "OFF",
+      "17": "OFF",
+      "18": "OFF",
+      "19": "OFF",
+      "20": "OFF",
+      "21": "OFF",
+      "22": "EX_CARAVAN",
+      "23": "EX_CARAVAN",
+      "24": "EX_CARAVAN",
+      "25": "OFF",
+      "26": "OFF",
+      "27": "OFF",
+      "28": "EX_CARAVAN",
+      "29": "EX_CARAVAN",
+      "30": "EX_CARAVAN",
+      "31": "EX_CARAVAN"
+    },
+    "Sam Talarman": {
+      "1": "OFF",
+      "2": "OFF",
+      "3": "EX_CARAVAN",
+      "4": "EX_CARAVAN",
+      "5": "EX_CARAVAN",
+      "6": "EX_CARAVAN",
+      "7": "EX_CARAVAN",
+      "8": "OFF",
+      "9": "OFF",
+      "10": "EX_CARAVAN",
+      "11": "EX_CARAVAN",
+      "12": "EX_CARAVAN",
+      "13": "EX_CARAVAN",
+      "14": "EX_CARAVAN",
+      "15": "OFF",
+      "16": "OFF",
+      "17": "EX_CARAVAN",
+      "18": "EX_CARAVAN",
+      "19": "EX_CARAVAN",
+      "20": "OFF",
+      "21": "OFF",
+      "22": "OFF",
+      "23": "EX_CARAVAN",
+      "24": "EX_CARAVAN",
+      "25": "EX_CARAVAN",
+      "26": "EX_CARAVAN",
+      "27": "OFF",
+      "28": "OFF",
+      "29": "OFF",
+      "30": "EX_CARAVAN",
+      "31": "EX_CARAVAN"
+    },
+    "Steven Schmitt": {
+      "1": "EX_CARAVAN",
+      "2": "OFF",
+      "3": "OFF",
+      "4": "EX_CARAVAN",
+      "5": "EX_CARAVAN",
+      "6": "EX_CARAVAN",
+      "7": "EX_CARAVAN",
+      "8": "EX_CARAVAN",
+      "9": "OFF",
+      "10": "OFF",
+      "11": "EX_CARAVAN",
+      "12": "EX_CARAVAN",
+      "13": "EX_CARAVAN",
+      "14": "EX_CARAVAN",
+      "15": "EX_CARAVAN",
+      "16": "OFF",
+      "17": "OFF",
+      "18": "EX_CARAVAN",
+      "19": "EX_CARAVAN",
+      "20": "EX_CARAVAN",
+      "21": "EX_CARAVAN",
+      "22": "EX_CARAVAN",
+      "23": "OFF",
+      "24": "OFF",
+      "25": "EX_CARAVAN",
+      "26": "EX_CARAVAN",
+      "27": "EX_CARAVAN",
+      "28": "EX_CARAVAN",
+      "29": "OFF",
+      "30": "OFF",
+      "31": "OFF"
+    },
+    "Ben Reese": {
+      "1": "EX_CARAVAN",
+      "2": "OFF",
+      "3": "OFF",
+      "4": "OFF",
+      "5": "OFF",
+      "6": "OFF",
+      "7": "OFF",
+      "8": "OFF",
+      "9": "OFF",
+      "10": "OFF",
+      "11": "OFF",
+      "12": "EX_CARAVAN",
+      "13": "EX_CARAVAN",
+      "14": "EX_CARAVAN",
+      "15": "EX_CARAVAN",
+      "16": "EX_CARAVAN",
+      "17": "EX_CARAVAN",
+      "18": "EX_CARAVAN",
+      "19": "EX_CARAVAN",
+      "20": "EX_CARAVAN",
+      "21": "EX_CARAVAN",
+      "22": "OFF",
+      "23": "EX_CARAVAN",
+      "24": "OFF",
+      "25": "OFF",
+      "26": "OFF",
+      "27": "EX_CARAVAN",
+      "28": "EX_CARAVAN",
+      "29": "EX_CARAVAN",
+      "30": "EX_CARAVAN",
+      "31": "OFF"
+    },
+    "Brian Yap": {
+      "1": "EX_CARAVAN",
+      "2": "OFF",
+      "3": "OFF",
+      "4": "EX_CARAVAN",
+      "5": "EX_CARAVAN",
+      "6": "EX_CARAVAN",
+      "7": "EX_CARAVAN",
+      "8": "EX_CARAVAN",
+      "9": "OFF",
+      "10": "OFF",
+      "11": "EX_CARAVAN",
+      "12": "EX_CARAVAN",
+      "13": "EX_CARAVAN",
+      "14": "EX_CARAVAN",
+      "15": "EX_CARAVAN",
+      "16": "OFF",
+      "17": "OFF",
+      "18": "OFF",
+      "19": "OFF",
+      "20": "EX_CARAVAN",
+      "21": "EX_CARAVAN",
+      "22": "EX_CARAVAN",
+      "23": "EX_CARAVAN",
+      "24": "EX_CARAVAN",
+      "25": "EX_CARAVAN",
+      "26": "OFF",
+      "27": "OFF",
+      "28": "OFF",
+      "29": "EX_CARAVAN",
+      "30": "EX_CARAVAN",
+      "31": "EX_CARAVAN"
+    },
+    "Will Mathews": {
+      "1": "EX_CARAVAN",
+      "2": "OFF",
+      "3": "OFF",
+      "4": "EX_CARAVAN",
+      "5": "EX_CARAVAN",
+      "6": "EX_CARAVAN",
+      "7": "OFF",
+      "8": "OFF",
+      "9": "EX_CARAVAN",
+      "10": "EX_CARAVAN",
+      "11": "EX_CARAVAN",
+      "12": "EX_CARAVAN",
+      "13": "OFF",
+      "14": "OFF",
+      "15": "OFF",
+      "16": "EX_CARAVAN",
+      "17": "EX_CARAVAN",
+      "18": "EX_CARAVAN",
+      "19": "EX_CARAVAN",
+      "20": "OFF",
+      "21": "OFF",
+      "22": "OFF",
+      "23": "EX_CARAVAN",
+      "24": "EX_CARAVAN",
+      "25": "EX_CARAVAN",
+      "26": "EX_CARAVAN",
+      "27": "OFF",
+      "28": "OFF",
+      "29": "OFF",
+      "30": "EX_CARAVAN",
+      "31": "EX_CARAVAN"
+    },
+    "Justin E-gard": {
+      "1": "OFF",
+      "2": "AMPHIB_CARAVAN",
+      "3": "AMPHIB_CARAVAN",
+      "4": "AMPHIB_CARAVAN",
+      "5": "AMPHIB_CARAVAN",
+      "6": "AMPHIB_CARAVAN",
+      "7": "AMPHIB_CARAVAN",
+      "8": "AMPHIB_CARAVAN",
+      "9": "AMPHIB_CARAVAN",
+      "10": "AMPHIB_CARAVAN",
+      "11": "AMPHIB_CARAVAN",
+      "12": "OFF",
+      "13": "OFF",
+      "14": "OFF",
+      "15": "OFF",
+      "16": "OFF",
+      "17": "OFF",
+      "18": "OFF",
+      "19": "OFF",
+      "20": "OFF",
+      "21": "OFF",
+      "22": "AMPHIB_CARAVAN",
+      "23": "OFF",
+      "24": "OFF",
+      "25": "OFF",
+      "26": "AMPHIB_CARAVAN",
+      "27": "AMPHIB_CARAVAN",
+      "28": "AMPHIB_CARAVAN",
+      "29": "AMPHIB_CARAVAN",
+      "30": "OFF",
+      "31": "OFF"
+    },
+    "Chuck Perkins": {
+      "1": "AMPHIB_CARAVAN",
+      "2": "OFF",
+      "3": "OFF",
+      "4": "OFF",
+      "5": "OFF",
+      "6": "OFF",
+      "7": "OFF",
+      "8": "OFF",
+      "9": "OFF",
+      "10": "OFF",
+      "11": "OFF",
+      "12": "AMPHIB_CARAVAN",
+      "13": "AMPHIB_CARAVAN",
+      "14": "AMPHIB_CARAVAN",
+      "15": "AMPHIB_CARAVAN",
+      "16": "AMPHIB_CARAVAN",
+      "17": "AMPHIB_CARAVAN",
+      "18": "OFF",
+      "19": "OFF",
+      "20": "OFF",
+      "21": "AMPHIB_CARAVAN",
+      "22": "AMPHIB_CARAVAN",
+      "23": "AMPHIB_CARAVAN",
+      "24": "AMPHIB_CARAVAN",
+      "25": "OFF",
+      "26": "OFF",
+      "27": "OFF",
+      "28": "AMPHIB_CARAVAN",
+      "29": "AMPHIB_CARAVAN",
+      "30": "AMPHIB_CARAVAN",
+      "31": "AMPHIB_CARAVAN"
+    },
+    "Hunter Sinclair": {
+      "1": "AMPHIB_CARAVAN",
+      "2": "AMPHIB_CARAVAN",
+      "3": "C206",
+      "4": "AMPHIB_CARAVAN",
+      "5": "OFF",
+      "6": "OFF",
+      "7": "AMPHIB_CARAVAN",
+      "8": "AMPHIB_CARAVAN",
+      "9": "AMPHIB_CARAVAN",
+      "10": "C206",
+      "11": "AMPHIB_CARAVAN",
+      "12": "OFF",
+      "13": "OFF",
+      "14": "AMPHIB_CARAVAN",
+      "15": "AMPHIB_CARAVAN",
+      "16": "AMPHIB_CARAVAN",
+      "17": "C206",
+      "18": "AMPHIB_CARAVAN",
+      "19": "OFF",
+      "20": "OFF",
+      "21": "AMPHIB_CARAVAN",
+      "22": "AMPHIB_CARAVAN",
+      "23": "AMPHIB_CARAVAN",
+      "24": "C206",
+      "25": "AMPHIB_CARAVAN",
+      "26": "OFF",
+      "27": "OFF",
+      "28": "AMPHIB_CARAVAN",
+      "29": "AMPHIB_CARAVAN",
+      "30": "AMPHIB_CARAVAN",
+      "31": "OFF"
+    },
+    "Wayne Ciesski": {
+      "1": "AMPHIB_CARAVAN",
+      "2": "OFF",
+      "3": "OFF",
+      "4": "AMPHIB_CARAVAN",
+      "5": "AMPHIB_CARAVAN",
+      "6": "AMPHIB_CARAVAN",
+      "7": "OFF",
+      "8": "OFF",
+      "9": "OFF",
+      "10": "AMPHIB_CARAVAN",
+      "11": "AMPHIB_CARAVAN",
+      "12": "AMPHIB_CARAVAN",
+      "13": "AMPHIB_CARAVAN",
+      "14": "OFF",
+      "15": "OFF",
+      "16": "OFF",
+      "17": "AMPHIB_CARAVAN",
+      "18": "AMPHIB_CARAVAN",
+      "19": "AMPHIB_CARAVAN",
+      "20": "AMPHIB_CARAVAN",
+      "21": "OFF",
+      "22": "OFF",
+      "23": "OFF",
+      "24": "AMPHIB_CARAVAN",
+      "25": "AMPHIB_CARAVAN",
+      "26": "AMPHIB_CARAVAN",
+      "27": "AMPHIB_CARAVAN",
+      "28": "OFF",
+      "29": "OFF",
+      "30": "OFF",
+      "31": "OFF"
+    },
+    "Jason Gray": {
+      "1": "OFF",
+      "2": "OFF",
+      "3": "C206",
+      "4": "C206",
+      "5": "C206",
+      "6": "C206",
+      "7": "OFF",
+      "8": "OFF",
+      "9": "C206",
+      "10": "C206",
+      "11": "C206",
+      "12": "C206",
+      "13": "C206",
+      "14": "OFF",
+      "15": "OFF",
+      "16": "C206",
+      "17": "C206",
+      "18": "C206",
+      "19": "C206",
+      "20": "C206",
+      "21": "OFF",
+      "22": "OFF",
+      "23": "OFF",
+      "24": "OFF",
+      "25": "C206",
+      "26": "C206",
+      "27": "C206",
+      "28": "C206",
+      "29": "OFF",
+      "30": "OFF",
+      "31": "OFF"
+    },
+    "Cory Kunjara": {
+      "1": "C206",
+      "2": "OFF",
+      "3": "OFF",
+      "4": "C206",
+      "5": "C206",
+      "6": "C206",
+      "7": "C206",
+      "8": "C206",
+      "9": "OFF",
+      "10": "OFF",
+      "11": "C206",
+      "12": "C206",
+      "13": "C206",
+      "14": "C206",
+      "15": "C206",
+      "16": "OFF",
+      "17": "OFF",
+      "18": "OFF",
+      "19": "C206",
+      "20": "C206",
+      "21": "C206",
+      "22": "C206",
+      "23": "C206",
+      "24": "OFF",
+      "25": "OFF",
+      "26": "OFF",
+      "27": "C206",
+      "28": "C206",
+      "29": "C206",
+      "30": "C206",
+      "31": "OFF"
+    },
+    "Mikel Garm": {
+      "1": "C206",
+      "2": "C206",
+      "3": "C206",
+      "4": "C206",
+      "5": "OFF",
+      "6": "OFF",
+      "7": "C206",
+      "8": "C206",
+      "9": "C206",
+      "10": "C206",
+      "11": "C206",
+      "12": "OFF",
+      "13": "OFF",
+      "14": "C206",
+      "15": "C206",
+      "16": "C206",
+      "17": "C206",
+      "18": "C206",
+      "19": "OFF",
+      "20": "OFF",
+      "21": "OFF",
+      "22": "C206",
+      "23": "C206",
+      "24": "C206",
+      "25": "C206",
+      "26": "OFF",
+      "27": "OFF",
+      "28": "OFF",
+      "29": "C206",
+      "30": "C206",
+      "31": "C206"
+    },
+    "Bennett Caralson": {
+      "1": "OFF",
+      "2": "OFF",
+      "3": "BEAVER",
+      "4": "BEAVER",
+      "5": "C206",
+      "6": "BEAVER",
+      "7": "OFF",
+      "8": "OFF",
+      "9": "OFF",
+      "10": "BEAVER",
+      "11": "BEAVER",
+      "12": "C206",
+      "13": "BEAVER",
+      "14": "OFF",
+      "15": "OFF",
+      "16": "OFF",
+      "17": "BEAVER",
+      "18": "BEAVER",
+      "19": "C206",
+      "20": "BEAVER",
+      "21": "OFF",
+      "22": "OFF",
+      "23": "OFF",
+      "24": "BEAVER",
+      "25": "BEAVER",
+      "26": "C206",
+      "27": "BEAVER",
+      "28": "OFF",
+      "29": "OFF",
+      "30": "OFF",
+      "31": "OFF"
+    },
+    "Nick Swisher": {
+      "1": "BEAVER",
+      "2": "OFF",
+      "3": "OFF",
+      "4": "BEAVER",
+      "5": "BEAVER",
+      "6": "BEAVER",
+      "7": "BEAVER",
+      "8": "BEAVER",
+      "9": "OFF",
+      "10": "OFF",
+      "11": "BEAVER",
+      "12": "BEAVER",
+      "13": "BEAVER",
+      "14": "BEAVER",
+      "15": "BEAVER",
+      "16": "OFF",
+      "17": "OFF",
+      "18": "BEAVER",
+      "19": "BEAVER",
+      "20": "BEAVER",
+      "21": "BEAVER",
+      "22": "BEAVER",
+      "23": "OFF",
+      "24": "OFF",
+      "25": "OFF",
+      "26": "BEAVER",
+      "27": "BEAVER",
+      "28": "BEAVER",
+      "29": "BEAVER",
+      "30": "OFF",
+      "31": "OFF"
+    },
+    "Eric Evans": {
+      "1": "OFF",
+      "2": "BEAVER",
+      "3": "BEAVER",
+      "4": "BEAVER",
+      "5": "BEAVER",
+      "6": "BEAVER",
+      "7": "BEAVER",
+      "8": "BEAVER",
+      "9": "BEAVER",
+      "10": "BEAVER",
+      "11": "BEAVER",
+      "12": "OFF",
+      "13": "OFF",
+      "14": "OFF",
+      "15": "OFF",
+      "16": "OFF",
+      "17": "OFF",
+      "18": "OFF",
+      "19": "OFF",
+      "20": "OFF",
+      "21": "OFF",
+      "22": "BEAVER",
+      "23": "BEAVER",
+      "24": "BEAVER",
+      "25": "OFF",
+      "26": "OFF",
+      "27": "OFF",
+      "28": "BEAVER",
+      "29": "BEAVER",
+      "30": "BEAVER",
+      "31": "BEAVER"
+    },
+    "Dave Cambel": {
+      "1": "OFF",
+      "2": "OFF",
+      "3": "OFF",
+      "4": "OFF",
+      "5": "OFF",
+      "6": "OFF",
+      "7": "OFF",
+      "8": "OFF",
+      "9": "OFF",
+      "10": "OFF",
+      "11": "OFF",
+      "12": "OFF",
+      "13": "OFF",
+      "14": "OFF",
+      "15": {
+        "a": "BEAVER",
+        "m": "G"
+      },
+      "16": {
+        "a": "BEAVER",
+        "m": "G"
+      },
+      "17": {
+        "a": "BEAVER",
+        "m": "G"
+      },
+      "18": "BEAVER",
+      "19": "BEAVER",
+      "20": "OFF",
+      "21": "OFF",
+      "22": "OFF",
+      "23": "BEAVER",
+      "24": "BEAVER",
+      "25": "BEAVER",
+      "26": "BEAVER",
+      "27": "OFF",
+      "28": "OFF",
+      "29": "OFF",
+      "30": "BEAVER",
+      "31": "BEAVER"
+    },
+    "Jerry Stuart": {
+      "1": "BEAVER",
+      "2": "OFF",
+      "3": "OFF",
+      "4": "OFF",
+      "5": "OFF",
+      "6": "OFF",
+      "7": "OFF",
+      "8": "OFF",
+      "9": "OFF",
+      "10": "OFF",
+      "11": "OFF",
+      "12": "BEAVER",
+      "13": "BEAVER",
+      "14": "BEAVER",
+      "15": "BEAVER",
+      "16": "BEAVER",
+      "17": "BEAVER",
+      "18": "BEAVER",
+      "19": "BEAVER",
+      "20": "BEAVER",
+      "21": "BEAVER",
+      "22": "OFF",
+      "23": "OFF",
+      "24": "OFF",
+      "25": "BEAVER",
+      "26": "BEAVER",
+      "27": "BEAVER",
+      "28": "BEAVER",
+      "29": "OFF",
+      "30": "OFF",
+      "31": "OFF"
+    },
+    "Megan Trejo": {
+      "1": "OFF",
+      "2": "BEAVER",
+      "3": "BEAVER",
+      "4": "BEAVER",
+      "5": "BEAVER",
+      "6": "BEAVER",
+      "7": "BEAVER",
+      "8": "BEAVER",
+      "9": "BEAVER",
+      "10": "BEAVER",
+      "11": "BEAVER",
+      "12": "OFF",
+      "13": "OFF",
+      "14": "OFF",
+      "15": "OFF",
+      "16": "OFF",
+      "17": "OFF",
+      "18": "OFF",
+      "19": "OFF",
+      "20": "OFF",
+      "21": "OFF",
+      "22": "BEAVER",
+      "23": "OFF",
+      "24": "OFF",
+      "25": "OFF",
+      "26": "BEAVER",
+      "27": "BEAVER",
+      "28": "BEAVER",
+      "29": "BEAVER",
+      "30": "OFF",
+      "31": "OFF"
+    },
+    "Zoe Doden": {
+      "1": "OFF",
+      "2": "OFF",
+      "3": "BEAVER",
+      "4": "BEAVER",
+      "5": "OFF",
+      "6": "OFF",
+      "7": "OFF",
+      "8": "BEAVER",
+      "9": "BEAVER",
+      "10": "BEAVER",
+      "11": "BEAVER",
+      "12": "OFF",
+      "13": "OFF",
+      "14": "OFF",
+      "15": "BEAVER",
+      "16": "BEAVER",
+      "17": "BEAVER",
+      "18": "BEAVER",
+      "19": "OFF",
+      "20": "OFF",
+      "21": "OFF",
+      "22": "BEAVER",
+      "23": "BEAVER",
+      "24": "BEAVER",
+      "25": "BEAVER",
+      "26": "OFF",
+      "27": "OFF",
+      "28": "OFF",
+      "29": "BEAVER",
+      "30": "BEAVER",
+      "31": "BEAVER"
+    }
+  },
+  "pilot_qualifications_raw": {
+    "Aburto, Gabe": {
+      "N721KP": "IFR",
+      "N722KP": "IFR",
+      "N724KP": "IFR",
+      "SUPERVAN_753_754_755": "IFR",
+      "N450KP": "IFR",
+      "EX_438_336": "IFR"
+    },
+    "Allen, Jordan": {
+      "N721KP": "IFR",
+      "N722KP": "IFR",
+      "N726KP": "IFR",
+      "N724KP": "IFR"
+    },
+    "Campbell, Dave": {
+      "BEAVER_GROUP": true,
+      "BEAVER_60TF": true,
+      "SEAPILOT": true,
+      "PACK_CREEK": true,
+      "ELFIN_COVE": true,
+      "NORRIS_LAKE": true
+    },
+    "Corson, Dan": {
+      "AMPHIB_206": true,
+      "AMPHIB_CARAVAN": true,
+      "BEAVER_GROUP": true,
+      "BEAVER_60TF": true,
+      "SEAPILOT": true,
+      "PACK_CREEK": true,
+      "ELFIN_COVE": true,
+      "NORRIS_LAKE": true
+    },
+    "Downs, Seth": {
+      "SUPERVAN_753_754_755": "IFR",
+      "N450KP": "IFR",
+      "EX_438_336": "IFR",
+      "AMPHIB_206": true,
+      "AMPHIB_CARAVAN": true,
+      "BEAVER_GROUP": true,
+      "BEAVER_60TF": true,
+      "SEAPILOT": true,
+      "PACK_CREEK": true,
+      "ELFIN_COVE": true,
+      "FOREST_SERVICE": true,
+      "DRY_BAY": true,
+      "NORRIS_LAKE": true,
+      "FORKLIFT": "Yes"
+    },
+    "Estergard, Justin": {
+      "SUPERVAN_753_754_755": "IFR",
+      "N450KP": "IFR",
+      "EX_438_336": "IFR",
+      "AMPHIB_CARAVAN": true,
+      "SEAPILOT": true,
+      "ELFIN_COVE": true
+    },
+    "Evans, Eric": {
+      "N721KP": "IFR/Right seat",
+      "N722KP": "IFR/Right seat",
+      "N726KP": "IFR/Right seat",
+      "N724KP": "IFR/Right seat",
+      "SUPERVAN_753_754_755": "IFR",
+      "N450KP": "IFR",
+      "EX_438_336": "IFR",
+      "DRY_BAY": true
+    },
+    "Fisk, Ian": {
+      "N721KP": "IFR/Right seat",
+      "N722KP": "IFR/Right seat",
+      "N726KP": "IFR/Right seat",
+      "N724KP": "IFR/Right seat",
+      "SUPERVAN_753_754_755": "IFR",
+      "EX_438_336": "IFR",
+      "DRY_BAY": true
+    },
+    "Ford, Patrick": {
+      "SUPERVAN_753_754_755": "IFR",
+      "N450KP": "IFR",
+      "EX_438_336": "IFR",
+      "AMPHIB_206": true,
+      "AMPHIB_CARAVAN": true,
+      "BEAVER_GROUP": true,
+      "BEAVER_60TF": true,
+      "SEAPILOT": true,
+      "PACK_CREEK": true,
+      "ELFIN_COVE": true,
+      "FOREST_SERVICE": true,
+      "DRY_BAY": true,
+      "NORRIS_LAKE": true,
+      "FORKLIFT": "Yes"
+    },
+    "Forsythe, Jacob": {
+      "SUPERVAN_753_754_755": "IFR",
+      "N450KP": "IFR",
+      "EX_438_336": "IFR"
+    },
+    "Hake, Gregg": {
+      "N721KP": "IFR/Right Seat",
+      "N722KP": "IFR/Right Seat",
+      "N726KP": "IFR/Right Seat",
+      "N724KP": "IFR/Right Seat",
+      "SUPERVAN_753_754_755": "IFR",
+      "N450KP": "IFR",
+      "EX_438_336": "IFR",
+      "DRY_BAY": true,
+      "FORKLIFT": "Yes"
+    },
+    "Hansen, Justin": {
+      "N721KP": "IFR",
+      "N722KP": "IFR",
+      "N726KP": "IFR",
+      "N724KP": "IFR",
+      "SUPERVAN_753_754_755": "IFR",
+      "EX_438_336": "IFR",
+      "FORKLIFT": "Yes"
+    },
+    "Hasegawa, Ian": {
+      "N721KP": "IFR",
+      "N722KP": "IFR",
+      "N724KP": "IFR",
+      "SUPERVAN_753_754_755": "IFR",
+      "N450KP": "IFR",
+      "EX_438_336": "IFR"
+    },
+    "Hosticka, Louis": {
+      "SUPERVAN_753_754_755": "IFR",
+      "N450KP": "IFR",
+      "EX_438_336": "IFR"
+    },
+    "Kunjara, Cory": {
+      "AMPHIB_206": true,
+      "BEAVER_GROUP": true,
+      "BEAVER_60TF": true,
+      "PACK_CREEK": true,
+      "NORRIS_LAKE": true
+    },
+    "Kveum, Sean": {
+      "N721KP": "IFR/Right seat",
+      "N722KP": "IFR/Right Seat",
+      "N726KP": "IFR/Right Seat",
+      "N724KP": "IFR/Right Seat",
+      "SUPERVAN_753_754_755": "VFR",
+      "EX_438_336": "VFR",
+      "AMPHIB_206": true,
+      "AMPHIB_CARAVAN": true,
+      "BEAVER_GROUP": true,
+      "BEAVER_60TF": true,
+      "SEAPILOT": true,
+      "PACK_CREEK": true,
+      "ELFIN_COVE": true,
+      "FOREST_SERVICE": true,
+      "DRY_BAY": true,
+      "NORRIS_LAKE": true
+    },
+    "Parker, Adam": {
+      "SUPERVAN_753_754_755": "IFR",
+      "EX_438_336": "IFR"
+    },
+    "Perkins, Chuck": {
+      "AMPHIB_CARAVAN": true,
+      "BEAVER_GROUP": true,
+      "BEAVER_60TF": true,
+      "SEAPILOT": true,
+      "PACK_CREEK": true,
+      "ELFIN_COVE": true,
+      "FOREST_SERVICE": true,
+      "NORRIS_LAKE": true
+    },
+    "Rees, Ben": {
+      "SUPERVAN_753_754_755": "IFR",
+      "N450KP": "IFR",
+      "EX_438_336": "IFR"
+    },
+    "Sinclair, Hunter": {
+      "SUPERVAN_753_754_755": "VFR",
+      "N450KP": "VFR",
+      "EX_438_336": "VFR",
+      "AMPHIB_206": true,
+      "AMPHIB_CARAVAN": true,
+      "BEAVER_GROUP": true,
+      "BEAVER_60TF": true,
+      "SEAPILOT": true,
+      "PACK_CREEK": true,
+      "ELFIN_COVE": true,
+      "FOREST_SERVICE": true,
+      "NORRIS_LAKE": true
+    },
+    "Schmitt, Steven": {
+      "N450KP": "VFR",
+      "EX_438_336": "VFR"
+    },
+    "Stuart, Jerry": {
+      "SUPERVAN_753_754_755": "IFR",
+      "N450KP": "IFR",
+      "EX_438_336": "IFR",
+      "BEAVER_GROUP": true,
+      "PACK_CREEK": true,
+      "NORRIS_LAKE": true
+    },
+    "Swisher, Nick": {
+      "SUPERVAN_753_754_755": "IFR",
+      "N450KP": "IFR",
+      "EX_438_336": "IFR",
+      "BEAVER_GROUP": true,
+      "BEAVER_60TF": true,
+      "PACK_CREEK": true,
+      "DRY_BAY": true,
+      "NORRIS_LAKE": true
+    },
+    "Talarman, Sam": {
+      "N450KP": "IFR",
+      "EX_438_336": "IFR"
+    },
+    "Trejo, Megan": {
+      "SUPERVAN_753_754_755": "IFR",
+      "AMPHIB_206": true,
+      "BEAVER_GROUP": true,
+      "BEAVER_60TF": true,
+      "PACK_CREEK": true,
+      "NORRIS_LAKE": true
+    },
+    "Carlson, Bennett": {
+      "AMPHIB_206": true,
+      "PACK_CREEK": true,
+      "NORRIS_LAKE": true
+    },
+    "Gray, Jason": {
+      "BEAVER_GROUP": true,
+      "BEAVER_60TF": true,
+      "PACK_CREEK": true,
+      "NORRIS_LAKE": true
+    },
+    "Pennisi, Mathew": {
+      "N721KP": "NOT crossed",
+      "N722KP": "IFR",
+      "N726KP": "IFR",
+      "N724KP": "IFR"
+    },
+    "Armstrong, Nick": {
+      "N450KP": "VFR",
+      "EX_438_336": "VFR"
+    },
+    "Yap, Brian": {
+      "N450KP": "VFR",
+      "EX_438_336": "VFR"
+    },
+    "Garmendia, Mikel": {
+      "N724KP": "IFR",
+      "BEAVER_GROUP": true,
+      "BEAVER_60TF": true,
+      "PACK_CREEK": true,
+      "NORRIS_LAKE": true
+    },
+    "Doden, Zoe": {},
+    "Mathews, Will": {},
+    "CIESIELSKI, Wayne": {
+      "N724KP": "IFR"
+    }
+  },
+  "pilot_status": {
+    "Gabriel Aburto": {
+      "Phone": "907-252-0774",
+      "Date of Hire": "2024-12-09",
+      "Pos": "PIC",
+      "Certificate Number": 4427585.0,
+      "Medical Due": "2027-03-02",
+      "Rec Gnd Seaplanes": "2026-12-01",
+      "Rec Gnd Air X": "2026-10-10",
+      "HazMat Due": "2026-12-01"
+    },
+    "Guilherme Andrade": {
+      "Date of Hire": "2026-05-04",
+      "Pos": "PIC"
+    },
+    "Nick Armstrong": {
+      "Phone": "541-602-6731",
+      "Date of Hire": "2026-04-06",
+      "Pos": "PIC",
+      "Certificate Number": 4186344.0,
+      "Medical Due": "2026-09-10",
+      "Rec Gnd Seaplanes": "2027-04-18",
+      "HazMat Due": "2028-04-30"
+    },
+    "Dave Campbell": {
+      "Phone": "907-419-8428",
+      "Date of Hire": "2024-05-06",
+      "Pos": "PIC",
+      "Certificate Number": 3438908.0,
+      "Medical Due": "2027-04-15",
+      "Rec Gnd Seaplanes": "2026-05-31",
+      "HazMat Due": "2026-05-01"
+    },
+    "Bennett Carlson": {
+      "Phone": "530-412-2893",
+      "Date of Hire": "2025-04-14",
+      "Pos": "Pic",
+      "Certificate Number": 3854833.0,
+      "Medical Due": "2026-03-31",
+      "Rec Gnd Seaplanes": "2026-04-01",
+      "HazMat Due": "2027-04-10"
+    },
+    "Dan Corson": {
+      "Phone": "907-957-6041",
+      "Date of Hire": "2011-09-29",
+      "Pos": "PIC",
+      "Certificate Number": 3454979.0,
+      "Medical Due": "2026-12-12",
+      "Rec Gnd Seaplanes": "2026-07-01",
+      "HazMat Due": "2026-07-31"
+    },
+    "Seth Downs": {
+      "Phone": "509-607-9835",
+      "Date of Hire": "2023-05-01",
+      "Pos": "PIC",
+      "Certificate Number": 4060687.0,
+      "Medical Due": "2027-03-16",
+      "Rec Gnd Seaplanes": "2026-05-01",
+      "HazMat Due": "2027-05-01"
+    },
+    "Justin Estergard": {
+      "Phone": "308-870-4321",
+      "Date of Hire": "2025-05-12",
+      "Pos": "PIC",
+      "Certificate Number": 3547502.0,
+      "Medical Due": "2026-12-31",
+      "Rec Gnd Seaplanes": "2026-05-01",
+      "HazMat Due": "2027-05-01"
+    },
+    "Eric Evans": {
+      "Phone": "573-286-8092",
+      "Date of Hire": "2021-03-15",
+      "Pos": "PIC",
+      "Certificate Number": 3655661.0,
+      "Medical Due": "2026-10-29",
+      "Rec Gnd Seaplanes": "2027-03-01",
+      "Rec Gnd Air X": "2026-10-31",
+      "HazMat Due": "2028-10-01"
+    },
+    "Patrick Ford": {
+      "Phone": "970-946-7604",
+      "Date of Hire": "2020-02-10",
+      "Pos": "PIC",
+      "Certificate Number": 3420351.0,
+      "Medical Due": "2027-01-31",
+      "Rec Gnd Seaplanes": "2027-02-01",
+      "Rec Gnd Air X": "2027-02-02",
+      "HazMat Due": "2028-02-01"
+    },
+    "Jacob Forsythe": {
+      "Phone": "248-767-8271",
+      "Date of Hire": "2024-05-06",
+      "Pos": "PIC",
+      "Certificate Number": 3720661.0,
+      "Medical Due": "2026-10-28",
+      "Rec Gnd Seaplanes": "2026-05-31",
+      "HazMat Due": "2026-05-01"
+    },
+    "Mikel Garmendia": {
+      "Phone": "813-777-9213",
+      "Date of Hire": "2025-04-14",
+      "Pos": "PIC",
+      "Certificate Number": 4520450.0,
+      "Medical Due": "2026-12-15",
+      "Rec Gnd Seaplanes": "2027-04-20",
+      "HazMat Due": "2027-05-01"
+    },
+    "Jason Gray": {
+      "Phone": "604-679-7570",
+      "Date of Hire": "2025-04-14",
+      "Pos": "PIC",
+      "Certificate Number": 4940734.0,
+      "Medical Due": "2027-02-10",
+      "Rec Gnd Seaplanes": "2027-04-14",
+      "HazMat Due": "2027-04-01"
+    },
+    "Gregory Hake": {
+      "Phone": "404-219-2181",
+      "Date of Hire": "2022-04-04",
+      "Pos": "PIC",
+      "Certificate Number": 3117243.0,
+      "Medical Due": "2027-04-30",
+      "Rec Gnd Seaplanes": "2027-03-31",
+      "Rec Gnd Air X": "2027-02-02",
+      "HazMat Due": "2028-02-01"
+    },
+    "Justin Hansen": {
+      "Phone": "540-649-9284",
+      "Date of Hire": "2023-02-20",
+      "Pos": "PIC",
+      "Certificate Number": 4134886.0,
+      "Medical Due": "2026-10-31",
+      "Rec Gnd Seaplanes": "2027-03-15",
+      "Rec Gnd Air X": "2026-05-31",
+      "HazMat Due": "2028-03-15"
+    },
+    "Ian Hasegawa": {
+      "Phone": "845-853-6111",
+      "Date of Hire": "2025-03-24",
+      "Pos": "PIC",
+      "Certificate Number": 3881164.0,
+      "Medical Due": "2026-05-31",
+      "Rec Gnd Seaplanes": "2027-03-03",
+      "Rec Gnd Air X": "2026-10-10",
+      "HazMat Due": "2027-03-01"
+    },
+    "Louis Hosticka": {
+      "Phone": "231-750-1526",
+      "Date of Hire": "2025-03-24",
+      "Pos": "PIC",
+      "Certificate Number": 4430645.0,
+      "Medical Due": "2026-11-30",
+      "Rec Gnd Seaplanes": "2027-03-03",
+      "HazMat Due": "2027-03-01"
+    },
+    "Cory Kunjara": {
+      "Phone": "509-793-8877",
+      "Date of Hire": "2025-03-31",
+      "Pos": "PIC",
+      "Certificate Number": 4312662.0,
+      "Medical Due": "2026-09-23",
+      "Rec Gnd Seaplanes": "2027-04-14",
+      "HazMat Due": "2027-05-01"
+    },
+    "Sean Kveum": {
+      "Phone": "541-250-1589",
+      "Date of Hire": "2013-03-10",
+      "Pos": "PIC",
+      "Certificate Number": 3173211.0,
+      "Medical Due": "2027-03-02",
+      "Rec Gnd Seaplanes": "2026-10-10",
+      "Rec Gnd Air X": "2026-10-31",
+      "HazMat Due": "2027-10-01"
+    },
+    "Adam Parker": {
+      "Phone": "515-991-2728",
+      "Date of Hire": "2024-02-19",
+      "Pos": "PIC",
+      "Certificate Number": 4047517.0,
+      "Medical Due": "2025-10-01",
+      "Rec Gnd Seaplanes": "2026-02-01",
+      "HazMat Due": " "
+    },
+    "Charles Perkins": {
+      "Phone": "907-713-7658",
+      "Date of Hire": "2021-10-04",
+      "Pos": "PIC",
+      "Certificate Number": 2505478.0,
+      "Medical Due": "2026-10-01",
+      "Rec Gnd Seaplanes": "2026-10-31",
+      "HazMat Due": "2027-10-01"
+    },
+    "Ben Rees": {
+      "Phone": "770-833-5529",
+      "Date of Hire": "2025-03-24",
+      "Pos": "PIC",
+      "Certificate Number": 3845098.0,
+      "Medical Due": "2027-02-17",
+      "Rec Gnd Seaplanes": "2027-03-03",
+      "HazMat Due": "2027-04-10"
+    },
+    "Hunter Sinclair": {
+      "Phone": "319-529-7816",
+      "Date of Hire": "2023-04-17",
+      "Pos": "PIC",
+      "Certificate Number": 4383918.0,
+      "Medical Due": "2027-02-12",
+      "Rec Gnd Seaplanes": "2026-04-01",
+      "HazMat Due": "2026-04-02"
+    },
+    "Steven Schmitt": {
+      "Phone": "907-783-2710",
+      "Date of Hire": "2026-03-02",
+      "Pos": "PIC",
+      "Certificate Number": 4560132.0,
+      "Medical Due": "2026-11-26",
+      "Rec Gnd Seaplanes": "2027-03-09",
+      "HazMat Due": "2028-03-03"
+    },
+    "Jerry Stuart": {
+      "Phone": "208-680-3499",
+      "Date of Hire": "2022-05-16",
+      "Pos": "PIC",
+      "Certificate Number": 3154484.0,
+      "Medical Due": "2026-04-02",
+      "Rec Gnd Seaplanes": "2026-05-01",
+      "HazMat Due": "2026-06-28"
+    },
+    "Nick Swisher": {
+      "Phone": "520-234-6120",
+      "Date of Hire": "2023-04-17",
+      "Pos": "PIC",
+      "Certificate Number": 3942408.0,
+      "Medical Due": "2027-01-31",
+      "Rec Gnd Seaplanes": "2026-04-01",
+      "HazMat Due": "2027-05-01"
+    },
+    "Sam Talarman": {
+      "Phone": "813-862-8365",
+      "Date of Hire": "2026-03-02",
+      "Pos": "PIC",
+      "Certificate Number": 3967744.0,
+      "Medical Due": "2026-06-25",
+      "Rec Gnd Seaplanes": "2027-03-09",
+      "HazMat Due": "2028-03-03"
+    },
+    "Megan Trejo": {
+      "Phone": "951-852-6671",
+      "Date of Hire": "2024-04-15",
+      "Pos": "PIC",
+      "Certificate Number": 4185731.0,
+      "Medical Due": "2027-03-16",
+      "Rec Gnd Seaplanes": "2026-05-31",
+      "HazMat Due": "2026-04-02"
+    },
+    "Brian Yap": {
+      "Phone": "808-425-2956",
+      "Date of Hire": "2026-04-06",
+      "Pos": "PIC",
+      "Certificate Number": 3823505.0,
+      "Medical Due": "2027-01-23",
+      "Rec Gnd Seaplanes": "2027-04-10",
+      "HazMat Due": "2028-04-18"
+    }
+  },
+  "flight_log": {
+    "date_range": {
+      "start": "2026-05-01 07:00:00",
+      "end": "2026-08-31 18:05:00"
+    },
+    "total_legs": 15073,
+    "unique_tails": [
+      "N1229C",
+      "N1229Z",
+      "N264KP",
+      "N265KP",
+      "N32009",
+      "N336JP",
+      "N438JP",
+      "N450KP",
+      "N4794C",
+      "N60TF",
+      "N721KP",
+      "N722KP",
+      "N743KP",
+      "N748KP",
+      "N749KP",
+      "N753KP",
+      "N754KP",
+      "N755KP",
+      "N777DH"
+    ],
+    "top_50_routes": {
+      "Klawock->Ketchikan": 2044,
+      "Ketchikan->Klawock": 2010,
+      "Norris Lake->Juneau": 911,
+      "Juneau->Norris Lake": 909,
+      "Haines->Juneau": 587,
+      "Juneau->Haines": 586,
+      "Gustavus->Juneau": 507,
+      "Juneau->Gustavus": 505,
+      "Hoonah->Juneau": 491,
+      "Juneau->Hoonah": 488,
+      "Juneau->Skagway": 466,
+      "Skagway->Juneau": 463,
+      "Juneau->Angoon": 353,
+      "Pelican->Juneau": 318,
+      "Juneau->Pelican": 315,
+      "Juneau->Kake": 249,
+      "Kake->Juneau": 248,
+      "Tenakee Springs->Juneau": 224,
+      "Klawock->Juneau": 224,
+      "Juneau->Sitka": 224,
+      "Sitka->Klawock": 222,
+      "Pack Creek->Juneau": 218,
+      "Angoon->Tenakee Springs": 215,
+      "Juneau->Pack Creek": 215,
+      "Juneau->Elfin Cove": 179,
+      "Elfin Cove->Juneau": 173,
+      "Juneau->Pybus": 173,
+      "Pybus->Juneau": 173,
+      "Angoon->Juneau": 140,
+      "Juneau->Klawock": 125,
+      "Skagway->Haines": 124,
+      "Sitka->Juneau": 123,
+      "Haines->Skagway": 122,
+      "Klawock->Sitka": 121,
+      "Waterfall Creek->Juneau": 91,
+      "Juneau->Waterfall Creek": 90,
+      "Ketchikan->El Capitan Lodge": 66,
+      "El Capitan Lodge->Ketchikan": 65,
+      "Sitka->Kake": 62,
+      "Kake->Sitka": 62,
+      "Ketchikan->Sea Otter Sound Lodge": 30,
+      "Sea Otter Sound Lodge->Ketchikan": 30,
+      "Juneau->Tenakee Springs": 12,
+      "Juneau->West Turner Lake": 6,
+      "West Turner Lake->Juneau": 6,
+      "Gustavus->Haines": 6,
+      "Juneau->Bartlett Cove": 5,
+      "Bartlett Cove->Juneau": 4,
+      "Hasselborg Lake->Pack Creek": 3,
+      "Haines->Gustavus": 3
+    },
+    "monthly_daily_summary": {
+      "1": {
+        "date": "2026-05-01",
+        "dow": "Fri",
+        "total_legs": 67,
+        "by_tail": {
+          "N1229C": 6,
+          "N1229Z": 6,
+          "N265KP": 7,
+          "N722KP": 6,
+          "N336JP": 8,
+          "N450KP": 6,
+          "N755KP": 8,
+          "N438JP": 6,
+          "N753KP": 4,
+          "N264KP": 4,
+          "N754KP": 2,
+          "N749KP": 4
+        }
+      },
+      "2": {
+        "date": "2026-05-02",
+        "dow": "Sat",
+        "total_legs": 53,
+        "by_tail": {
+          "N1229C": 6,
+          "N1229Z": 6,
+          "N265KP": 7,
+          "N722KP": 4,
+          "N336JP": 8,
+          "N753KP": 6,
+          "N755KP": 8,
+          "N438JP": 4,
+          "N450KP": 2,
+          "N754KP": 2
+        }
+      },
+      "3": {
+        "date": "2026-05-03",
+        "dow": "Sun",
+        "total_legs": 50,
+        "by_tail": {
+          "N1229C": 6,
+          "N1229Z": 6,
+          "N722KP": 6,
+          "N336JP": 8,
+          "N755KP": 8,
+          "N264KP": 2,
+          "N438JP": 6,
+          "N753KP": 4,
+          "N265KP": 4
+        }
+      },
+      "4": {
+        "date": "2026-05-04",
+        "dow": "Mon",
+        "total_legs": 62,
+        "by_tail": {
+          "N1229C": 6,
+          "N1229Z": 6,
+          "N265KP": 7,
+          "N722KP": 6,
+          "N336JP": 8,
+          "N753KP": 6,
+          "N755KP": 8,
+          "N438JP": 7,
+          "N450KP": 4,
+          "N743KP": 2,
+          "N754KP": 2
+        }
+      },
+      "5": {
+        "date": "2026-05-05",
+        "dow": "Tue",
+        "total_legs": 66,
+        "by_tail": {
+          "N1229C": 6,
+          "N1229Z": 6,
+          "N265KP": 7,
+          "N722KP": 6,
+          "N336JP": 8,
+          "N753KP": 6,
+          "N755KP": 8,
+          "N438JP": 4,
+          "N450KP": 2,
+          "N721KP": 5,
+          "N264KP": 2,
+          "N743KP": 2,
+          "N754KP": 2,
+          "N748KP": 2
+        }
+      },
+      "6": {
+        "date": "2026-05-06",
+        "dow": "Wed",
+        "total_legs": 63,
+        "by_tail": {
+          "N1229C": 6,
+          "N1229Z": 6,
+          "N748KP": 4,
+          "N265KP": 7,
+          "N721KP": 6,
+          "N336JP": 8,
+          "N753KP": 6,
+          "N755KP": 8,
+          "N438JP": 4,
+          "N450KP": 4,
+          "N743KP": 2,
+          "N754KP": 2
+        }
+      },
+      "7": {
+        "date": "2026-05-07",
+        "dow": "Thu",
+        "total_legs": 65,
+        "by_tail": {
+          "N1229C": 6,
+          "N1229Z": 6,
+          "N265KP": 7,
+          "N336JP": 8,
+          "N753KP": 6,
+          "N755KP": 8,
+          "N438JP": 7,
+          "N450KP": 4,
+          "N721KP": 5,
+          "N722KP": 2,
+          "N743KP": 2,
+          "N754KP": 2,
+          "N264KP": 2
+        }
+      },
+      "8": {
+        "date": "2026-05-08",
+        "dow": "Fri",
+        "total_legs": 73,
+        "by_tail": {
+          "N1229C": 6,
+          "N1229Z": 6,
+          "N722KP": 4,
+          "N755KP": 8,
+          "N265KP": 7,
+          "N748KP": 3,
+          "N336JP": 8,
+          "N450KP": 5,
+          "N753KP": 6,
+          "N438JP": 6,
+          "N721KP": 6,
+          "N754KP": 3,
+          "N264KP": 5
+        }
+      },
+      "9": {
+        "date": "2026-05-09",
+        "dow": "Sat",
+        "total_legs": 66,
+        "by_tail": {
+          "N753KP": 1,
+          "N1229C": 6,
+          "N1229Z": 6,
+          "N755KP": 9,
+          "N450KP": 8,
+          "N438JP": 5,
+          "N265KP": 7,
+          "N336JP": 8,
+          "N722KP": 6,
+          "N721KP": 4,
+          "N264KP": 2,
+          "N748KP": 4
+        }
+      },
+      "10": {
+        "date": "2026-05-10",
+        "dow": "Sun",
+        "total_legs": 58,
+        "by_tail": {
+          "N1229C": 6,
+          "N1229Z": 6,
+          "N721KP": 6,
+          "N755KP": 9,
+          "N450KP": 8,
+          "N438JP": 5,
+          "N743KP": 4,
+          "N265KP": 4,
+          "N336JP": 6,
+          "N722KP": 4
+        }
+      },
+      "11": {
+        "date": "2026-05-11",
+        "dow": "Mon",
+        "total_legs": 67,
+        "by_tail": {
+          "N1229C": 6,
+          "N1229Z": 6,
+          "N721KP": 8,
+          "N755KP": 9,
+          "N450KP": 8,
+          "N438JP": 5,
+          "N265KP": 7,
+          "N336JP": 8,
+          "N777DH": 2,
+          "N4794C": 4,
+          "N722KP": 4
+        }
+      },
+      "12": {
+        "date": "2026-05-12",
+        "dow": "Tue",
+        "total_legs": 71,
+        "by_tail": {
+          "N1229C": 6,
+          "N1229Z": 6,
+          "N336JP": 9,
+          "N721KP": 6,
+          "N450KP": 6,
+          "N438JP": 7,
+          "N265KP": 9,
+          "N755KP": 9,
+          "N722KP": 5,
+          "N777DH": 2,
+          "N4794C": 4,
+          "N748KP": 2
+        }
+      },
+      "13": {
+        "date": "2026-05-13",
+        "dow": "Wed",
+        "total_legs": 90,
+        "by_tail": {
+          "N1229C": 6,
+          "N1229Z": 6,
+          "N32009": 6,
+          "N753KP": 3,
+          "N754KP": 6,
+          "N721KP": 6,
+          "N755KP": 9,
+          "N450KP": 8,
+          "N438JP": 5,
+          "N748KP": 4,
+          "N264KP": 4,
+          "N265KP": 7,
+          "N336JP": 7,
+          "N722KP": 5,
+          "N749KP": 2,
+          "N777DH": 2,
+          "N4794C": 4
+        }
+      },
+      "14": {
+        "date": "2026-05-14",
+        "dow": "Thu",
+        "total_legs": 84,
+        "by_tail": {
+          "N1229C": 6,
+          "N1229Z": 6,
+          "N32009": 6,
+          "N753KP": 3,
+          "N754KP": 6,
+          "N721KP": 8,
+          "N755KP": 9,
+          "N450KP": 6,
+          "N438JP": 7,
+          "N265KP": 7,
+          "N336JP": 8,
+          "N777DH": 2,
+          "N4794C": 4,
+          "N722KP": 4,
+          "N264KP": 2
+        }
+      },
+      "15": {
+        "date": "2026-05-15",
+        "dow": "Fri",
+        "total_legs": 84,
+        "by_tail": {
+          "N1229C": 6,
+          "N1229Z": 6,
+          "N32009": 6,
+          "N753KP": 3,
+          "N754KP": 6,
+          "N721KP": 6,
+          "N755KP": 9,
+          "N450KP": 8,
+          "N438JP": 5,
+          "N265KP": 7,
+          "N336JP": 8,
+          "N777DH": 2,
+          "N748KP": 2,
+          "N4794C": 4,
+          "N722KP": 4,
+          "N264KP": 2
+        }
+      },
+      "16": {
+        "date": "2026-05-16",
+        "dow": "Sat",
+        "total_legs": 78,
+        "by_tail": {
+          "N1229C": 6,
+          "N1229Z": 6,
+          "N32009": 6,
+          "N753KP": 3,
+          "N754KP": 6,
+          "N721KP": 6,
+          "N755KP": 9,
+          "N450KP": 8,
+          "N438JP": 5,
+          "N265KP": 7,
+          "N336JP": 8,
+          "N4794C": 4,
+          "N722KP": 4
+        }
+      },
+      "17": {
+        "date": "2026-05-17",
+        "dow": "Sun",
+        "total_legs": 73,
+        "by_tail": {
+          "N1229C": 6,
+          "N1229Z": 6,
+          "N32009": 6,
+          "N753KP": 3,
+          "N754KP": 6,
+          "N721KP": 6,
+          "N755KP": 9,
+          "N450KP": 8,
+          "N438JP": 5,
+          "N4794C": 4,
+          "N265KP": 4,
+          "N336JP": 6,
+          "N722KP": 4
+        }
+      },
+      "18": {
+        "date": "2026-05-18",
+        "dow": "Mon",
+        "total_legs": 82,
+        "by_tail": {
+          "N1229C": 6,
+          "N1229Z": 6,
+          "N32009": 6,
+          "N753KP": 3,
+          "N754KP": 6,
+          "N721KP": 6,
+          "N755KP": 9,
+          "N450KP": 8,
+          "N438JP": 5,
+          "N265KP": 7,
+          "N336JP": 8,
+          "N777DH": 2,
+          "N4794C": 4,
+          "N722KP": 4,
+          "N264KP": 2
+        }
+      },
+      "19": {
+        "date": "2026-05-19",
+        "dow": "Tue",
+        "total_legs": 82,
+        "by_tail": {
+          "N1229C": 6,
+          "N1229Z": 6,
+          "N32009": 6,
+          "N753KP": 3,
+          "N754KP": 6,
+          "N721KP": 6,
+          "N755KP": 9,
+          "N450KP": 6,
+          "N438JP": 7,
+          "N265KP": 7,
+          "N336JP": 8,
+          "N777DH": 2,
+          "N4794C": 4,
+          "N748KP": 2,
+          "N722KP": 4
+        }
+      },
+      "20": {
+        "date": "2026-05-20",
+        "dow": "Wed",
+        "total_legs": 85,
+        "by_tail": {
+          "N1229C": 6,
+          "N1229Z": 6,
+          "N32009": 6,
+          "N753KP": 3,
+          "N754KP": 6,
+          "N721KP": 6,
+          "N755KP": 9,
+          "N450KP": 8,
+          "N438JP": 5,
+          "N748KP": 2,
+          "N265KP": 7,
+          "N336JP": 8,
+          "N777DH": 5,
+          "N4794C": 4,
+          "N722KP": 4
+        }
+      },
+      "21": {
+        "date": "2026-05-21",
+        "dow": "Thu",
+        "total_legs": 88,
+        "by_tail": {
+          "N1229C": 6,
+          "N1229Z": 6,
+          "N32009": 6,
+          "N753KP": 3,
+          "N754KP": 6,
+          "N450KP": 8,
+          "N721KP": 6,
+          "N755KP": 9,
+          "N748KP": 4,
+          "N438JP": 7,
+          "N265KP": 7,
+          "N336JP": 8,
+          "N777DH": 2,
+          "N4794C": 4,
+          "N722KP": 4,
+          "N264KP": 2
+        }
+      },
+      "22": {
+        "date": "2026-05-22",
+        "dow": "Fri",
+        "total_legs": 107,
+        "by_tail": {
+          "N1229C": 6,
+          "N1229Z": 6,
+          "N32009": 6,
+          "N753KP": 8,
+          "N754KP": 6,
+          "N721KP": 9,
+          "N264KP": 6,
+          "N265KP": 8,
+          "N336JP": 8,
+          "N722KP": 2,
+          "N755KP": 8,
+          "N450KP": 9,
+          "N438JP": 11,
+          "N743KP": 6,
+          "N4794C": 4,
+          "N748KP": 2,
+          "N777DH": 2
+        }
+      },
+      "23": {
+        "date": "2026-05-23",
+        "dow": "Sat",
+        "total_legs": 113,
+        "by_tail": {
+          "N336JP": 6,
+          "N1229C": 6,
+          "N1229Z": 6,
+          "N32009": 6,
+          "N753KP": 8,
+          "N754KP": 6,
+          "N721KP": 9,
+          "N755KP": 10,
+          "N265KP": 6,
+          "N450KP": 9,
+          "N438JP": 11,
+          "N743KP": 6,
+          "N264KP": 4,
+          "N4794C": 4,
+          "N60TF": 6,
+          "N777DH": 6,
+          "N722KP": 4
+        }
+      },
+      "24": {
+        "date": "2026-05-24",
+        "dow": "Sun",
+        "total_legs": 119,
+        "by_tail": {
+          "N1229C": 6,
+          "N1229Z": 6,
+          "N32009": 6,
+          "N753KP": 8,
+          "N754KP": 6,
+          "N721KP": 9,
+          "N755KP": 10,
+          "N265KP": 6,
+          "N336JP": 8,
+          "N450KP": 9,
+          "N438JP": 11,
+          "N743KP": 6,
+          "N264KP": 4,
+          "N4794C": 4,
+          "N60TF": 10,
+          "N777DH": 10
+        }
+      },
+      "25": {
+        "date": "2026-05-25",
+        "dow": "Mon",
+        "total_legs": 109,
+        "by_tail": {
+          "N1229C": 6,
+          "N1229Z": 6,
+          "N32009": 6,
+          "N753KP": 8,
+          "N754KP": 6,
+          "N721KP": 9,
+          "N755KP": 10,
+          "N265KP": 6,
+          "N336JP": 8,
+          "N450KP": 7,
+          "N438JP": 11,
+          "N264KP": 4,
+          "N4794C": 4,
+          "N743KP": 6,
+          "N60TF": 6,
+          "N777DH": 6
+        }
+      },
+      "26": {
+        "date": "2026-05-26",
+        "dow": "Tue",
+        "total_legs": 120,
+        "by_tail": {
+          "N1229C": 6,
+          "N1229Z": 6,
+          "N753KP": 8,
+          "N754KP": 6,
+          "N721KP": 9,
+          "N755KP": 10,
+          "N265KP": 6,
+          "N336JP": 6,
+          "N450KP": 7,
+          "N438JP": 11,
+          "N60TF": 12,
+          "N777DH": 12,
+          "N264KP": 4,
+          "N4794C": 4,
+          "N32009": 5,
+          "N743KP": 4,
+          "N722KP": 4
+        }
+      },
+      "27": {
+        "date": "2026-05-27",
+        "dow": "Wed",
+        "total_legs": 113,
+        "by_tail": {
+          "N1229C": 6,
+          "N1229Z": 6,
+          "N32009": 6,
+          "N753KP": 8,
+          "N754KP": 6,
+          "N721KP": 9,
+          "N755KP": 8,
+          "N265KP": 8,
+          "N336JP": 8,
+          "N450KP": 7,
+          "N438JP": 11,
+          "N722KP": 4,
+          "N748KP": 2,
+          "N264KP": 4,
+          "N4794C": 4,
+          "N743KP": 4,
+          "N60TF": 6,
+          "N777DH": 6
+        }
+      },
+      "28": {
+        "date": "2026-05-28",
+        "dow": "Thu",
+        "total_legs": 123,
+        "by_tail": {
+          "N1229C": 6,
+          "N1229Z": 6,
+          "N32009": 6,
+          "N753KP": 8,
+          "N754KP": 6,
+          "N721KP": 9,
+          "N755KP": 10,
+          "N265KP": 8,
+          "N336JP": 6,
+          "N450KP": 7,
+          "N438JP": 11,
+          "N60TF": 10,
+          "N777DH": 10,
+          "N264KP": 4,
+          "N4794C": 4,
+          "N748KP": 4,
+          "N743KP": 4,
+          "N722KP": 4
+        }
+      },
+      "29": {
+        "date": "2026-05-29",
+        "dow": "Fri",
+        "total_legs": 124,
+        "by_tail": {
+          "N32009": 7,
+          "N1229C": 6,
+          "N1229Z": 6,
+          "N753KP": 8,
+          "N754KP": 6,
+          "N721KP": 9,
+          "N755KP": 10,
+          "N265KP": 8,
+          "N336JP": 8,
+          "N450KP": 7,
+          "N438JP": 11,
+          "N743KP": 6,
+          "N60TF": 10,
+          "N777DH": 10,
+          "N264KP": 4,
+          "N4794C": 4,
+          "N722KP": 2,
+          "N748KP": 2
+        }
+      },
+      "30": {
+        "date": "2026-05-30",
+        "dow": "Sat",
+        "total_legs": 127,
+        "by_tail": {
+          "N1229C": 8,
+          "N1229Z": 8,
+          "N32009": 8,
+          "N753KP": 10,
+          "N754KP": 8,
+          "N721KP": 9,
+          "N755KP": 10,
+          "N265KP": 6,
+          "N336JP": 6,
+          "N450KP": 9,
+          "N438JP": 11,
+          "N743KP": 6,
+          "N264KP": 4,
+          "N4794C": 4,
+          "N60TF": 8,
+          "N777DH": 8,
+          "N722KP": 4
+        }
+      },
+      "31": {
+        "date": "2026-05-31",
+        "dow": "Sun",
+        "total_legs": 129,
+        "by_tail": {
+          "N1229C": 8,
+          "N1229Z": 8,
+          "N32009": 8,
+          "N753KP": 10,
+          "N754KP": 8,
+          "N721KP": 9,
+          "N755KP": 10,
+          "N265KP": 10,
+          "N336JP": 8,
+          "N450KP": 9,
+          "N438JP": 11,
+          "N743KP": 4,
+          "N264KP": 2,
+          "N4794C": 4,
+          "N748KP": 4,
+          "N60TF": 8,
+          "N777DH": 8
+        }
+      }
+    },
+    "aircraft_summary": [
+      {
+        "rego": "N1229C",
+        "flight_type": "Total",
+        "block_hrs": 0.0,
+        "flight_hrs": 0.0,
+        "landings": 0
+      },
+      {
+        "rego": "N1229Z",
+        "flight_type": "Total",
+        "block_hrs": 0.0,
+        "flight_hrs": 0.0,
+        "landings": 0
+      },
+      {
+        "rego": "N264KP",
+        "flight_type": "Total",
+        "block_hrs": 0.0,
+        "flight_hrs": 0.0,
+        "landings": 0
+      },
+      {
+        "rego": "N265KP",
+        "flight_type": "Total",
+        "block_hrs": 0.0,
+        "flight_hrs": 0.0,
+        "landings": 0
+      },
+      {
+        "rego": "N32009",
+        "flight_type": "Total",
+        "block_hrs": 0.0,
+        "flight_hrs": 0.0,
+        "landings": 0
+      },
+      {
+        "rego": "N336JP",
+        "flight_type": "Total",
+        "block_hrs": 0.0,
+        "flight_hrs": 0.0,
+        "landings": 0
+      },
+      {
+        "rego": "N438JP",
+        "flight_type": "Total",
+        "block_hrs": 0.0,
+        "flight_hrs": 0.0,
+        "landings": 0
+      },
+      {
+        "rego": "N450KP",
+        "flight_type": "Total",
+        "block_hrs": 0.0,
+        "flight_hrs": 0.0,
+        "landings": 0
+      },
+      {
+        "rego": "N4794C",
+        "flight_type": "Total",
+        "block_hrs": 0.0,
+        "flight_hrs": 0.0,
+        "landings": 0
+      },
+      {
+        "rego": "N60TF",
+        "flight_type": "Total",
+        "block_hrs": 0.0,
+        "flight_hrs": 0.0,
+        "landings": 0
+      },
+      {
+        "rego": "N721KP",
+        "flight_type": "Total",
+        "block_hrs": 0.0,
+        "flight_hrs": 0.0,
+        "landings": 0
+      },
+      {
+        "rego": "N722KP",
+        "flight_type": "Total",
+        "block_hrs": 0.0,
+        "flight_hrs": 0.0,
+        "landings": 0
+      },
+      {
+        "rego": "N743KP",
+        "flight_type": "Total",
+        "block_hrs": 0.0,
+        "flight_hrs": 0.0,
+        "landings": 0
+      },
+      {
+        "rego": "N748KP",
+        "flight_type": "Total",
+        "block_hrs": 0.0,
+        "flight_hrs": 0.0,
+        "landings": 0
+      },
+      {
+        "rego": "N749KP",
+        "flight_type": "Total",
+        "block_hrs": 0.0,
+        "flight_hrs": 0.0,
+        "landings": 0
+      },
+      {
+        "rego": "N753KP",
+        "flight_type": "Total",
+        "block_hrs": 0.0,
+        "flight_hrs": 0.0,
+        "landings": 0
+      },
+      {
+        "rego": "N754KP",
+        "flight_type": "Total",
+        "block_hrs": 0.0,
+        "flight_hrs": 0.0,
+        "landings": 0
+      },
+      {
+        "rego": "N755KP",
+        "flight_type": "Total",
+        "block_hrs": 0.0,
+        "flight_hrs": 0.0,
+        "landings": 0
+      },
+      {
+        "rego": "N777DH",
+        "flight_type": "Total",
+        "block_hrs": 0.0,
+        "flight_hrs": 0.0,
+        "landings": 0
+      }
+    ]
+  },
+  "color_legend": {
+    "OFF": "White - off day",
+    "SENIOR": "Gray - senior pilot ON / extra-any-aircraft for Hunter",
+    "AMPHIB_CARAVAN": "Light orange - amphib caravan day",
+    "EX_CARAVAN": "Light purple - EX caravan day",
+    "EX_CARAVAN_FLOATER": "Darker purple - EX caravan floater/extra",
+    "PC12": "Light teal - PC-12 day",
+    "EXTRA_PC12": "Pink - extra PC-12 day",
+    "BEAVER": "Light green - beaver day",
+    "C206": "Light yellow - Cessna 206 day",
+    "EXTRA_206": "Darker yellow - extra 206 day (Hunter)"
+  },
+  "pybus_codes": {
+    "P/Y/B/U/S": "Pybus split-shift markers",
+    "G": "Garrett day note"
+  }
+}
+</script>
+
+<script>
+// ============================================================
+// STATE + DATA LOAD
+// ============================================================
+const STATE = {
+  data: null,
+  approvedRequests: [], // {pilot, startDate, endDate, reason, approvedAt}
+};
+
+const AC_TYPES = {
+  PC12: { color: 'var(--ac-pc12)', short: 'PC12', covers: ['PC12', 'EXTRA_PC12'] },
+  EXTRA_PC12: { color: 'var(--ac-pc12x)', short: 'PC12+', covers: ['PC12', 'EXTRA_PC12'] },
+  EX_CARAVAN: { color: 'var(--ac-ex)', short: 'EX', covers: ['EX_CARAVAN', 'EX_CARAVAN_FLOATER'] },
+  EX_CARAVAN_FLOATER: { color: 'var(--ac-exf)', short: 'EX+', covers: ['EX_CARAVAN', 'EX_CARAVAN_FLOATER'] },
+  AMPHIB_CARAVAN: { color: 'var(--ac-amphib)', short: 'AMP', covers: ['AMPHIB_CARAVAN'] },
+  BEAVER: { color: 'var(--ac-beaver)', short: 'BVR', covers: ['BEAVER'] },
+  C206: { color: 'var(--ac-c206)', short: '206', covers: ['C206', 'EXTRA_206'] },
+  EXTRA_206: { color: 'var(--ac-c206x)', short: '206+', covers: ['C206', 'EXTRA_206'] },
+  SENIOR: { color: 'var(--ac-senior)', short: 'SR', covers: ['SENIOR'] },
+  OFF: { color: 'var(--ac-off)', short: '—', covers: [] },
+};
+
+// Map aircraft type -> qualifications fields a pilot needs
+const TYPE_TO_QUAL_FIELDS = {
+  PC12: ['N721KP', 'N722KP', 'N724KP', 'N726KP'],
+  EXTRA_PC12: ['N721KP', 'N722KP', 'N724KP', 'N726KP'],
+  EX_CARAVAN: ['SUPERVAN_753_754_755', 'N450KP', 'EX_438_336'],
+  EX_CARAVAN_FLOATER: ['SUPERVAN_753_754_755', 'N450KP', 'EX_438_336'],
+  AMPHIB_CARAVAN: ['AMPHIB_CARAVAN'],
+  BEAVER: ['BEAVER_GROUP', 'BEAVER_60TF'],
+  C206: ['AMPHIB_206'],
+  EXTRA_206: ['AMPHIB_206'],
+  SENIOR: [],
+};
+
+function init() {
+  const raw = document.getElementById('initial-data').textContent;
+  STATE.data = JSON.parse(raw);
+  renderAll();
+  wireUploads();
+  wireTabs();
+}
+
+function renderAll() {
+  updateHeader();
+  renderCalendar();
+  renderPilotsTable();
+  renderDayOffControls();
+  renderAnalytics();
+  renderDataStatus();
+}
+
+function updateHeader() {
+  const d = STATE.data;
+  document.getElementById('hdr-month').textContent = d.month || 'Unknown';
+  const pCount = Object.keys(d.pilots || {}).length;
+  const lCount = (d.flight_log && d.flight_log.total_legs) || 0;
+  document.getElementById('hdr-stats').textContent = `${pCount} pilots · ${lCount.toLocaleString()} legs · gen ${d.generated || ''}`;
+}
+
+// ============================================================
+// CALENDAR GRID
+// ============================================================
+function renderCalendar() {
+  const d = STATE.data;
+  const schedule = d.monthly_schedule_raw || d.may_schedule_raw || {};
+  const monthNum = d.month_num || 5;
+  const year = d.year || 2026;
+  const daysInMonth = new Date(year, monthNum, 0).getDate();
+  const dayLabels = [];
+  for (let i = 1; i <= daysInMonth; i++) {
+    const dow = new Date(year, monthNum - 1, i).toLocaleDateString('en', { weekday: 'short' })[0];
+    const isWeekend = [0, 6].includes(new Date(year, monthNum - 1, i).getDay());
+    dayLabels.push({ day: i, dow, isWeekend });
+  }
+
+  // Sort pilots: senior first, then by aircraft pool, then alpha
+  const POOL_ORDER = { SENIOR: 0, PC12: 1, EX_CARAVAN: 2, AMPHIB_CARAVAN: 3, C206: 4, BEAVER: 5 };
+  const pilotOrder = Object.keys(schedule).map(name => {
+    const days = schedule[name];
+    const counts = {};
+    Object.values(days).forEach(v => {
+      const a = typeof v === 'string' ? v : v.a;
+      counts[a] = (counts[a] || 0) + 1;
+    });
+    let primary = 'OFF';
+    let primaryCount = 0;
+    Object.entries(counts).forEach(([k, v]) => {
+      if (k !== 'OFF' && v > primaryCount) { primary = k; primaryCount = v; }
+    });
+    let pool = primary;
+    if (primary === 'EXTRA_PC12') pool = 'PC12';
+    if (primary === 'EXTRA_206') pool = 'C206';
+    if (primary === 'EX_CARAVAN_FLOATER') pool = 'EX_CARAVAN';
+    return { name, pool, sortKey: POOL_ORDER[pool] !== undefined ? POOL_ORDER[pool] : 99 };
+  }).sort((a, b) => a.sortKey - b.sortKey || a.name.localeCompare(b.name));
+
+  const totalCols = daysInMonth + 1;
+  let html = `<div class="cal-grid" style="grid-template-columns: 170px repeat(${daysInMonth}, minmax(32px, 1fr));">`;
+  html += `<div class="cal-cell corner">PILOT</div>`;
+  dayLabels.forEach(d => {
+    html += `<div class="cal-cell day-header${d.isWeekend ? ' weekend' : ''}">${d.day}<span style="opacity:0.6;">${d.dow}</span></div>`;
+  });
+  pilotOrder.forEach(({ name }) => {
+    html += `<div class="cal-cell name" onclick="showPilotDetail('${name.replace(/'/g, "\\'")}')">${name}</div>`;
+    for (let day = 1; day <= daysInMonth; day++) {
+      const v = schedule[name][day] || 'OFF';
+      const a = typeof v === 'string' ? v : v.a;
+      const m = typeof v === 'object' ? v.m : null;
+      const cls = AC_TYPES[a] ? a : 'UNKNOWN';
+      const short = AC_TYPES[a] ? AC_TYPES[a].short : '?';
+      const label = m ? m : (a !== 'OFF' ? short : '');
+      html += `<div class="cal-cell day-cell ${cls}" onclick="showDayDetail(${day}, '${name.replace(/'/g, "\\'")}')" title="${name} - May ${day}: ${a}${m ? ' (' + m + ')' : ''}">${label}</div>`;
+    }
+  });
+  html += `</div>`;
+  document.getElementById('cal-grid-host').innerHTML = html;
+}
+
+// ============================================================
+// PILOTS TABLE
+// ============================================================
+function renderPilotsTable() {
+  const d = STATE.data;
+  const pilots = d.pilots || {};
+  const status = d.pilot_status || {};
+  const trainers = d.trainers_check_airmen || {};
+
+  const rows = Object.entries(pilots).map(([name, p]) => {
+    const sch = p.schedule || {};
+    let onDays = 0;
+    const typeCounts = {};
+    Object.values(sch).forEach(v => {
+      const a = typeof v === 'string' ? v : v.a;
+      if (a !== 'OFF') onDays++;
+      typeCounts[a] = (typeCounts[a] || 0) + 1;
+    });
+    const primary = Object.entries(typeCounts)
+      .filter(([k]) => k !== 'OFF')
+      .sort((a, b) => b[1] - a[1])[0];
+    const primaryType = primary ? primary[0] : 'OFF';
+    const quals = p.quals || {};
+    const qualCount = Object.keys(quals).length;
+
+    // Match trainer status (uses "Last, First")
+    const lastFirst = Object.keys(trainers).find(k => {
+      const parts = k.split(',').map(s => s.trim());
+      if (parts.length === 2) return name.toLowerCase().includes(parts[0].toLowerCase()) || name.toLowerCase().includes(parts[1].toLowerCase());
+      return name === k;
+    });
+    const trainerInfo = trainers[lastFirst];
+
+    // Status / currency
+    const statusKey = Object.keys(status).find(k => k.toLowerCase().includes(name.split(' ').pop().toLowerCase()));
+    const stat = status[statusKey] || {};
+
+    return { name, primaryType, onDays, qualCount, trainerInfo, stat };
+  }).sort((a, b) => b.onDays - a.onDays);
+
+  let html = `<table>
+    <thead><tr>
+      <th>Pilot</th><th>Primary Type</th><th>Days On</th><th>Quals</th><th>Trainer/CA</th><th>Medical</th><th>HazMat</th>
+    </tr></thead><tbody>`;
+  rows.forEach(r => {
+    const typeShort = AC_TYPES[r.primaryType] ? AC_TYPES[r.primaryType].short : r.primaryType;
+    const typeColor = AC_TYPES[r.primaryType] ? AC_TYPES[r.primaryType].color : 'var(--text-mut)';
+    const tr = r.trainerInfo;
+    const trBadges = tr ? Object.keys(tr).filter(k => ['Check Airmen','IOE','Training Pilots'].includes(k)).map(k => {
+      const short = k === 'Check Airmen' ? 'CA' : (k === 'IOE' ? 'IOE' : 'TP');
+      return `<span class="tag-ok mr-1">${short}</span>`;
+    }).join('') : '';
+    html += `<tr onclick="showPilotDetail('${r.name.replace(/'/g, "\\'")}')" style="cursor: pointer;">
+      <td style="font-weight: 500;">${r.name}</td>
+      <td><span style="display: inline-block; width: 10px; height: 10px; background: ${typeColor}; margin-right: 6px; border-radius: 2px;"></span>${typeShort}</td>
+      <td class="mono">${r.onDays}</td>
+      <td class="mono">${r.qualCount}</td>
+      <td>${trBadges || '<span style="color: var(--text-mut);">—</span>'}</td>
+      <td class="mono" style="font-size: 11px;">${r.stat['Medical Due'] || '—'}</td>
+      <td class="mono" style="font-size: 11px;">${r.stat['HazMat Due'] || '—'}</td>
+    </tr>`;
+  });
+  html += `</tbody></table>`;
+  document.getElementById('pilots-table-host').innerHTML = html;
+}
+
+// ============================================================
+// DAY-OFF ANALYZER
+// ============================================================
+function renderDayOffControls() {
+  const sel = document.getElementById('do-pilot');
+  const pilots = Object.keys(STATE.data.pilots || {}).sort();
+  sel.innerHTML = pilots.map(p => `<option value="${p}">${p}</option>`).join('');
+}
+
+function getAssignment(pilotName, day) {
+  const sch = (STATE.data.pilots[pilotName] || {}).schedule || {};
+  const v = sch[day];
+  if (!v) return 'OFF';
+  return typeof v === 'string' ? v : v.a;
+}
+
+function getAllAssignmentsOnDay(day) {
+  const out = {};
+  const pilots = STATE.data.pilots || {};
+  Object.keys(pilots).forEach(name => {
+    out[name] = getAssignment(name, day);
+  });
+  return out;
+}
+
+function pilotIsQualifiedFor(pilotName, aircraftType) {
+  const quals = (STATE.data.pilots[pilotName] || {}).quals || {};
+  const fields = TYPE_TO_QUAL_FIELDS[aircraftType] || [];
+  if (aircraftType === 'SENIOR') return false; // senior is a role, not a qual
+  return fields.some(f => quals[f] && quals[f] !== false);
+}
+
+function analyzeDayOff() {
+  const pilot = document.getElementById('do-pilot').value;
+  const startStr = document.getElementById('do-start').value;
+  const endStr = document.getElementById('do-end').value;
+  const reason = document.getElementById('do-reason').value;
+  if (!pilot || !startStr || !endStr) return;
+  const start = new Date(startStr);
+  const end = new Date(endStr);
+  if (end < start) { document.getElementById('do-results').innerHTML = '<div class="status-bad">End date is before start date.</div>'; return; }
+
+  const monthNum = STATE.data.month_num || 5;
+  const dayResults = [];
+  const cur = new Date(start);
+  while (cur <= end) {
+    if (cur.getMonth() + 1 === monthNum) {
+      const day = cur.getDate();
+      dayResults.push(analyzeOneDay(pilot, day));
+    }
+    cur.setDate(cur.getDate() + 1);
+  }
+
+  let html = `<div class="mb-3" style="color: var(--text-sec); font-size: 12px;"><strong>${pilot}</strong> requesting ${dayResults.length} day(s) off${reason ? ' — ' + reason : ''}</div>`;
+  let okCount = 0, warnCount = 0, badCount = 0;
+  dayResults.forEach(r => {
+    if (r.severity === 'ok') okCount++;
+    else if (r.severity === 'warn') warnCount++;
+    else badCount++;
+  });
+  html += `<div class="grid grid-cols-3 gap-2 mb-3">`;
+  html += `<div class="kpi"><div class="kpi-label" style="color: var(--ok);">No impact</div><div class="kpi-value status-ok">${okCount}</div></div>`;
+  html += `<div class="kpi"><div class="kpi-label" style="color: var(--warn);">Swap needed</div><div class="kpi-value status-warn">${warnCount}</div></div>`;
+  html += `<div class="kpi"><div class="kpi-label" style="color: var(--bad);">Coverage gap</div><div class="kpi-value status-bad">${badCount}</div></div>`;
+  html += `</div>`;
+
+  html += `<table>
+    <thead><tr><th>Date</th><th>DOW</th><th>Was On</th><th>Status</th><th>Detail</th></tr></thead><tbody>`;
+  dayResults.forEach(r => {
+    const tagCls = r.severity === 'ok' ? 'tag-ok' : r.severity === 'warn' ? 'tag-warn' : 'tag-bad';
+    const date = new Date(2026, monthNum - 1, r.day);
+    const dow = date.toLocaleDateString('en', { weekday: 'short' });
+    html += `<tr>
+      <td class="mono">May ${r.day}</td>
+      <td>${dow}</td>
+      <td>${AC_TYPES[r.assignment] ? AC_TYPES[r.assignment].short : r.assignment}</td>
+      <td><span class="${tagCls}">${r.label}</span></td>
+      <td style="font-size: 11px; color: var(--text-sec);">${r.detail}</td>
+    </tr>`;
+  });
+  html += `</tbody></table>`;
+
+  // overall recommendation
+  let recommendation;
+  if (badCount > 0) recommendation = `<div class="status-bad mt-3" style="font-weight: 600;">⚠ ${badCount} day(s) have real coverage gaps. Discuss before approving.</div>`;
+  else if (warnCount > 0) recommendation = `<div class="status-warn mt-3" style="font-weight: 600;">Coverage achievable on all days but ${warnCount} require pulling someone from their day off (base-pay extra cost).</div>`;
+  else recommendation = `<div class="status-ok mt-3" style="font-weight: 600;">✓ All days clear — no coverage impact. Approve away.</div>`;
+  html += recommendation;
+
+  // approve button
+  html += `<div class="mt-3"><button class="btn btn-primary" onclick="approveRequest('${pilot}', '${startStr}', '${endStr}', '${reason.replace(/'/g, "")}')">Log this request as approved</button></div>`;
+
+  document.getElementById('do-results').innerHTML = html;
+}
+
+function analyzeOneDay(pilot, day) {
+  const assignment = getAssignment(pilot, day);
+  if (assignment === 'OFF') {
+    return { day, assignment, severity: 'ok', label: 'NO IMPACT', detail: 'Pilot was already scheduled off.' };
+  }
+
+  const allDay = getAllAssignmentsOnDay(day);
+
+  if (assignment === 'SENIOR') {
+    const otherSeniors = Object.entries(allDay).filter(([n, a]) => n !== pilot && a === 'SENIOR');
+    if (otherSeniors.length >= 1) {
+      return { day, assignment, severity: 'ok', label: 'COVERED', detail: `${otherSeniors.length} other senior(s) on duty: ${otherSeniors.map(([n]) => n).join(', ')}` };
+    }
+    return { day, assignment, severity: 'warn', label: 'SOLO SENIOR', detail: `Only senior on duty. Need to pull a senior from a day off (${getQualifiedOffPilots(day, 'SENIOR_BACKUP').slice(0, 3).join(', ') || 'no obvious backup'}).` };
+  }
+
+  // Aircraft assignment
+  const sameTypeWorking = Object.entries(allDay).filter(([n, a]) => n !== pilot && AC_TYPES[assignment].covers.includes(a));
+  const qualifiedOff = getQualifiedOffPilots(day, assignment);
+  const monthlyDaily = (STATE.data.flight_log.monthly_daily_summary || STATE.data.flight_log.may_daily_summary || {})[day] || {};
+  const tailsForType = countTailsForType(monthlyDaily.by_tail || {}, assignment);
+
+  // Heuristic: each fleet aircraft of this type needs a pilot. If sameTypeWorking >= tailsForType, we have buffer.
+  if (sameTypeWorking.length >= Math.max(1, tailsForType)) {
+    return {
+      day, assignment, severity: 'ok', label: 'COVERED',
+      detail: `${sameTypeWorking.length} other ${AC_TYPES[assignment].short} pilot(s) on duty (${tailsForType} tail flying). Coverage maintained.`,
+    };
+  }
+  if (qualifiedOff.length >= 1) {
+    return {
+      day, assignment, severity: 'warn', label: 'SWAP NEEDED',
+      detail: `${sameTypeWorking.length} other ${AC_TYPES[assignment].short} pilot(s) on, ${tailsForType} tail flying. Need to bring ${qualifiedOff[0]} (currently off) in for base pay.`,
+    };
+  }
+  return {
+    day, assignment, severity: 'bad', label: 'GAP',
+    detail: `${sameTypeWorking.length} other on, ${tailsForType} tail flying. No qualified ${AC_TYPES[assignment].short} pilot available off-duty. Real gap.`,
+  };
+}
+
+function getQualifiedOffPilots(day, aircraftType) {
+  if (aircraftType === 'SENIOR_BACKUP') {
+    // Senior backup = anyone qualled for the most demanding aircraft (PC-12) AND off
+    return Object.keys(STATE.data.pilots).filter(n => {
+      if (getAssignment(n, day) !== 'OFF') return false;
+      return pilotIsQualifiedFor(n, 'PC12');
+    });
+  }
+  return Object.keys(STATE.data.pilots).filter(n => {
+    if (getAssignment(n, day) !== 'OFF') return false;
+    return pilotIsQualifiedFor(n, aircraftType);
+  });
+}
+
+function countTailsForType(byTail, aircraftType) {
+  const fleet = STATE.data.fleet || {};
+  let count = 0;
+  Object.entries(byTail).forEach(([tail, _]) => {
+    const f = fleet[tail];
+    if (!f) return;
+    if (aircraftType === 'PC12' || aircraftType === 'EXTRA_PC12') {
+      if (f.type === 'PC12') count++;
+    } else if (aircraftType === 'EX_CARAVAN' || aircraftType === 'EX_CARAVAN_FLOATER') {
+      if (f.type === 'EX_CARAVAN' || f.type === 'SUPERVAN') count++;
+    } else if (aircraftType === 'AMPHIB_CARAVAN' && f.type === 'AMPHIB_CARAVAN') count++;
+    else if (aircraftType === 'BEAVER' && f.type === 'BEAVER') count++;
+    else if ((aircraftType === 'C206' || aircraftType === 'EXTRA_206') && f.type === 'AMPHIB_206') count++;
+  });
+  return count;
+}
+
+function approveRequest(pilot, start, end, reason) {
+  STATE.approvedRequests.push({ pilot, start, end, reason, approved: new Date().toISOString() });
+  renderApprovedList();
+  alert('Request logged. (In-memory only — export the JSON to persist it.)');
+}
+
+function renderApprovedList() {
+  const host = document.getElementById('do-approved-list');
+  if (!STATE.approvedRequests.length) { host.innerHTML = 'No requests logged yet.'; return; }
+  host.innerHTML = STATE.approvedRequests.map(r => `
+    <div class="mb-1" style="color: var(--text-sec); font-size: 12px;">
+      <span class="tag-ok">APPROVED</span>
+      <strong style="color: var(--text-pri);">${r.pilot}</strong> — ${r.start} to ${r.end}${r.reason ? ' (' + r.reason + ')' : ''}
+    </div>`).join('');
+}
+
+// ============================================================
+// ANALYTICS
+// ============================================================
+function renderAnalytics() {
+  const d = STATE.data;
+  const fl = d.flight_log || {};
+  const daily = fl.monthly_daily_summary || fl.may_daily_summary || {};
+
+  // Daily flight count chart
+  const days = Object.keys(daily).sort((a, b) => +a - +b);
+  const maxLegs = Math.max(...days.map(k => daily[k].total_legs), 1);
+
+  let html = `
+    <div class="grid grid-cols-4 gap-3 mb-4">
+      <div class="kpi"><div class="kpi-label">Total Legs (range)</div><div class="kpi-value">${(fl.total_legs || 0).toLocaleString()}</div><div class="kpi-sub">${(fl.date_range || {}).start || ''} → ${(fl.date_range || {}).end || ''}</div></div>
+      <div class="kpi"><div class="kpi-label">Active Tails</div><div class="kpi-value">${(fl.unique_tails || []).length}</div><div class="kpi-sub">includes outside aircraft</div></div>
+      <div class="kpi"><div class="kpi-label">Pilots on roster</div><div class="kpi-value">${Object.keys(d.pilots || {}).length}</div><div class="kpi-sub">${Object.keys(d.trainers_check_airmen || {}).length} trainers/CAs</div></div>
+      <div class="kpi"><div class="kpi-label">Top route</div><div class="kpi-value" style="font-size: 14px;">${Object.keys(fl.top_50_routes || {})[0] || '—'}</div><div class="kpi-sub">${Object.values(fl.top_50_routes || {})[0] || 0} legs</div></div>
+    </div>
+
+    <div class="panel p-4 mb-4">
+      <h3 style="font-size: 13px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-sec); font-weight: 600; margin-bottom: 12px;">Daily flight count — ${d.month}</h3>
+      <div class="scroll-x">
+        <div style="display: flex; align-items: flex-end; gap: 2px; min-width: max-content; height: 120px;">`;
+  days.forEach(k => {
+    const info = daily[k];
+    const h = (info.total_legs / maxLegs) * 100;
+    const col = info.dow === 'Sat' || info.dow === 'Sun' ? 'var(--accent)' : 'var(--ac-pc12)';
+    html += `<div title="${info.date} (${info.dow}): ${info.total_legs} legs" style="display: flex; flex-direction: column; align-items: center; gap: 2px;">
+      <div style="width: 24px; height: ${h}%; min-height: 1px; background: ${col}; border-radius: 1px 1px 0 0;"></div>
+      <div class="mono" style="font-size: 9px; color: var(--text-mut);">${k}</div>
+    </div>`;
+  });
+  html += `</div></div></div>`;
+
+  // Top routes
+  html += `<div class="grid grid-cols-2 gap-4">
+    <div class="panel p-4">
+      <h3 style="font-size: 13px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-sec); font-weight: 600; margin-bottom: 12px;">Top 15 Routes</h3>
+      <table>`;
+  Object.entries(fl.top_50_routes || {}).slice(0, 15).forEach(([route, count]) => {
+    html += `<tr><td>${route}</td><td class="mono" style="text-align: right;">${count.toLocaleString()}</td></tr>`;
+  });
+  html += `</table></div>
+    <div class="panel p-4">
+      <h3 style="font-size: 13px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-sec); font-weight: 600; margin-bottom: 12px;">Aircraft Block Hours</h3>
+      <table><thead><tr><th>Tail</th><th>Type</th><th>Block hrs</th><th>Landings</th></tr></thead><tbody>`;
+  (fl.aircraft_summary || []).slice(0, 25).forEach(a => {
+    html += `<tr><td class="mono">${a.rego}</td><td style="font-size: 11px; color: var(--text-mut);">${a.flight_type || ''}</td><td class="mono" style="text-align: right;">${(a.block_hrs || 0).toFixed(1)}</td><td class="mono" style="text-align: right;">${a.landings || 0}</td></tr>`;
+  });
+  html += `</tbody></table></div></div>`;
+
+  document.getElementById('analytics-host').innerHTML = html;
+}
+
+// ============================================================
+// DATA / UPLOAD
+// ============================================================
+function renderDataStatus() {
+  const d = STATE.data;
+  const fl = d.flight_log || {};
+  let html = `<div class="grid grid-cols-2 gap-4">`;
+  html += `<div><div style="font-size: 11px; color: var(--text-sec); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Schedule month</div><div class="mono mt-1">${d.month || '—'}</div></div>`;
+  html += `<div><div style="font-size: 11px; color: var(--text-sec); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Generated</div><div class="mono mt-1">${d.generated || '—'}</div></div>`;
+  html += `<div><div style="font-size: 11px; color: var(--text-sec); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Flight log range</div><div class="mono mt-1">${(fl.date_range || {}).start || '—'} → ${(fl.date_range || {}).end || '—'}</div></div>`;
+  html += `<div><div style="font-size: 11px; color: var(--text-sec); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Total legs</div><div class="mono mt-1">${(fl.total_legs || 0).toLocaleString()}</div></div>`;
+  html += `</div>`;
+  html += `<div class="mt-4" style="font-size: 12px; color: var(--text-sec); line-height: 1.6;">
+    <strong style="color: var(--text-pri);">How to refresh weekly:</strong><br>
+    1. Export new flight log XLSX from Takeflite<br>
+    2. Click <strong>⬆ Flight Log</strong> in the header — the daily counts and route data will refresh in-memory<br>
+    3. Click <strong>⬇ Export</strong> to download the updated JSON for git<br><br>
+    <strong style="color: var(--text-pri);">When the month changes:</strong> run the python parser script with the new official schedule + flight log, then upload the resulting JSON via <strong>⬆ Schedule JSON</strong>.
+  </div>`;
+  document.getElementById('data-status').innerHTML = html;
+}
+
+function wireUploads() {
+  document.getElementById('upload-flightlog').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { cellDates: true });
+    const sheet = wb.Sheets['Flight Log Export'] || wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet);
+    if (!rows.length) { alert('No rows found in flight log file.'); return; }
+    rebuildFlightLog(rows);
+    alert(`Loaded ${rows.length.toLocaleString()} legs from new flight log. Click Export to save the updated data file.`);
+    renderAll();
+  });
+
+  document.getElementById('upload-data').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const text = await file.text();
+    try {
+      const newData = JSON.parse(text);
+      STATE.data = newData;
+      renderAll();
+      alert(`Loaded data file: ${newData.month || 'unknown month'}, ${Object.keys(newData.pilots || {}).length} pilots.`);
+    } catch (err) {
+      alert('Invalid JSON: ' + err.message);
+    }
+  });
+}
+
+function rebuildFlightLog(rows) {
+  const byDate = {};
+  const routes = {};
+  let total = 0;
+  let minDate = null, maxDate = null;
+  const tails = new Set();
+
+  rows.forEach(r => {
+    const d = r['Date'] ? new Date(r['Date']) : null;
+    if (!d || isNaN(d.getTime())) return;
+    const key = d.toISOString().slice(0, 10);
+    if (!minDate || d < minDate) minDate = d;
+    if (!maxDate || d > maxDate) maxDate = d;
+    const rego = r['Aircraft Rego'] || 'UNKNOWN';
+    tails.add(rego);
+    byDate[key] = byDate[key] || {};
+    byDate[key][rego] = (byDate[key][rego] || 0) + 1;
+    total++;
+    const o = r['Origin'], dst = r['Destination'];
+    if (o && dst) routes[`${o}->${dst}`] = (routes[`${o}->${dst}`] || 0) + 1;
+  });
+
+  const monthNum = STATE.data.month_num || (minDate ? minDate.getMonth() + 1 : 5);
+  const year = STATE.data.year || (minDate ? minDate.getFullYear() : 2026);
+  const daysInMonth = new Date(year, monthNum, 0).getDate();
+  const monthly = {};
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dKey = `${year}-${String(monthNum).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const dayData = byDate[dKey] || {};
+    const dow = new Date(year, monthNum - 1, day).toLocaleDateString('en', { weekday: 'short' });
+    monthly[String(day)] = {
+      date: dKey, dow,
+      total_legs: Object.values(dayData).reduce((a, b) => a + b, 0),
+      by_tail: dayData,
+    };
+  }
+
+  STATE.data.flight_log = {
+    date_range: { start: minDate ? minDate.toISOString() : '', end: maxDate ? maxDate.toISOString() : '' },
+    total_legs: total,
+    unique_tails: Array.from(tails).sort(),
+    top_50_routes: Object.fromEntries(Object.entries(routes).sort((a, b) => b[1] - a[1]).slice(0, 50)),
+    monthly_daily_summary: monthly,
+    aircraft_summary: STATE.data.flight_log.aircraft_summary || [],
+  };
+  STATE.data.generated = new Date().toISOString().slice(0, 16).replace('T', ' ');
+}
+
+function exportData() {
+  const out = { ...STATE.data, generated: new Date().toISOString().slice(0, 16).replace('T', ' ') };
+  const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  const month = (STATE.data.month || 'data').toLowerCase().replace(/\s+/g, '');
+  a.download = `smart-calendar-data-${month}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ============================================================
+// MODAL DETAILS
+// ============================================================
+function showPilotDetail(name) {
+  const p = STATE.data.pilots[name];
+  if (!p) return;
+  const sch = p.schedule || {};
+  const onDays = Object.values(sch).filter(v => (typeof v === 'string' ? v : v.a) !== 'OFF').length;
+  const stat = (() => {
+    const all = STATE.data.pilot_status || {};
+    const k = Object.keys(all).find(k => k.toLowerCase().includes(name.split(' ').pop().toLowerCase()));
+    return all[k] || {};
+  })();
+
+  let html = `<div class="flex justify-between items-start mb-4"><div>
+    <div style="font-size: 11px; color: var(--text-mut); letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600;">Pilot</div>
+    <h2 style="font-size: 24px; font-weight: 700; margin-top: 4px;">${name}</h2>
+  </div><button class="btn" onclick="closeModal()">✕</button></div>`;
+
+  html += `<div class="grid grid-cols-3 gap-3 mb-4">`;
+  html += `<div class="kpi"><div class="kpi-label">Days On (May)</div><div class="kpi-value">${onDays}</div></div>`;
+  html += `<div class="kpi"><div class="kpi-label">Quals</div><div class="kpi-value">${Object.keys(p.quals || {}).length}</div></div>`;
+  html += `<div class="kpi"><div class="kpi-label">Position</div><div class="kpi-value" style="font-size: 14px;">${stat.Pos || '—'}</div></div>`;
+  html += `</div>`;
+
+  html += `<div class="mb-4"><h4 style="font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-sec); font-weight: 600; margin-bottom: 6px;">May 2026 schedule</h4>
+    <div style="display: grid; grid-template-columns: repeat(31, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line);">`;
+  for (let day = 1; day <= 31; day++) {
+    const v = sch[day] || 'OFF';
+    const a = typeof v === 'string' ? v : v.a;
+    const cls = AC_TYPES[a] ? a : 'UNKNOWN';
+    html += `<div class="cal-cell day-cell ${cls}" style="min-height: 30px; font-size: 9px;" title="May ${day}: ${a}">${day}</div>`;
+  }
+  html += `</div></div>`;
+
+  html += `<div class="mb-4"><h4 style="font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-sec); font-weight: 600; margin-bottom: 6px;">Aircraft & Special Quals</h4>
+    <div style="display: flex; flex-wrap: wrap; gap: 4px;">`;
+  Object.entries(p.quals || {}).forEach(([k, v]) => {
+    const display = v === true ? k : `${k}: ${v}`;
+    html += `<span style="background: var(--bg-elev); padding: 4px 8px; border-radius: 3px; font-size: 11px;" class="mono">${display}</span>`;
+  });
+  if (!Object.keys(p.quals || {}).length) html += `<span style="color: var(--text-mut); font-size: 12px;">No qual records on file.</span>`;
+  html += `</div></div>`;
+
+  if (Object.keys(stat).length) {
+    html += `<div class="mb-2"><h4 style="font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-sec); font-weight: 600; margin-bottom: 6px;">Currency</h4>
+      <table>`;
+    ['Date of Hire','Medical Due','Rec Gnd Seaplanes','Rec Gnd Air X','HazMat Due','Phone'].forEach(k => {
+      if (stat[k]) html += `<tr><td style="color: var(--text-sec);">${k}</td><td class="mono">${stat[k]}</td></tr>`;
+    });
+    html += `</table></div>`;
+  }
+
+  document.getElementById('detail-modal-content').innerHTML = html;
+  document.getElementById('detail-modal').classList.add('show');
+}
+
+function showDayDetail(day, focusPilot) {
+  const monthNum = STATE.data.month_num || 5;
+  const year = STATE.data.year || 2026;
+  const date = new Date(year, monthNum - 1, day);
+  const allDay = getAllAssignmentsOnDay(day);
+  const grouped = {};
+  Object.entries(allDay).forEach(([n, a]) => {
+    grouped[a] = grouped[a] || [];
+    grouped[a].push(n);
+  });
+
+  const dailyKey = STATE.data.flight_log.monthly_daily_summary || STATE.data.flight_log.may_daily_summary || {};
+  const dayInfo = dailyKey[day] || { total_legs: 0, by_tail: {} };
+
+  let html = `<div class="flex justify-between items-start mb-4"><div>
+    <div style="font-size: 11px; color: var(--text-mut); letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600;">Day Detail</div>
+    <h2 style="font-size: 24px; font-weight: 700; margin-top: 4px;">${date.toLocaleDateString('en', { weekday: 'long', month: 'long', day: 'numeric' })}</h2>
+    <div class="mono" style="color: var(--text-mut); font-size: 12px; margin-top: 2px;">${dayInfo.total_legs} legs scheduled across ${Object.keys(dayInfo.by_tail).length} tails</div>
+  </div><button class="btn" onclick="closeModal()">✕</button></div>`;
+
+  // Crew assignments
+  html += `<div class="mb-4"><h4 style="font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-sec); font-weight: 600; margin-bottom: 8px;">Crew assignments</h4>
+    <div class="grid grid-cols-2 gap-2">`;
+  const order = ['SENIOR','PC12','EXTRA_PC12','EX_CARAVAN','EX_CARAVAN_FLOATER','AMPHIB_CARAVAN','BEAVER','C206','EXTRA_206','OFF'];
+  order.forEach(k => {
+    if (!grouped[k] || !grouped[k].length) return;
+    const isFocus = grouped[k].includes(focusPilot);
+    const color = AC_TYPES[k] ? AC_TYPES[k].color : 'var(--text-mut)';
+    html += `<div style="background: var(--bg-elev); padding: 8px 10px; border-radius: 4px; ${isFocus ? 'border: 1px solid var(--accent);' : ''}">
+      <div style="font-size: 10px; color: var(--text-sec); text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em;"><span style="display:inline-block; width:8px; height:8px; background:${color}; border-radius:1px; margin-right:6px;"></span>${k} (${grouped[k].length})</div>
+      <div style="font-size: 11px; margin-top: 4px; line-height: 1.5;">${grouped[k].map(n => n === focusPilot ? `<strong style="color: var(--accent);">${n}</strong>` : n).join(', ')}</div>
+    </div>`;
+  });
+  html += `</div></div>`;
+
+  // Tails flying
+  if (Object.keys(dayInfo.by_tail).length) {
+    html += `<div class="mb-2"><h4 style="font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-sec); font-weight: 600; margin-bottom: 6px;">Tails operating</h4>
+      <table>`;
+    Object.entries(dayInfo.by_tail).sort((a,b) => b[1] - a[1]).forEach(([tail, cnt]) => {
+      const ftype = (STATE.data.fleet[tail] || {}).type || '—';
+      html += `<tr><td class="mono">${tail}</td><td style="font-size: 11px; color: var(--text-mut);">${ftype}</td><td class="mono" style="text-align: right;">${cnt} legs</td></tr>`;
+    });
+    html += `</table></div>`;
+  }
+
+  document.getElementById('detail-modal-content').innerHTML = html;
+  document.getElementById('detail-modal').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('detail-modal').classList.remove('show');
+}
+
+// ============================================================
+// TABS
+// ============================================================
+function wireTabs() {
+  document.querySelectorAll('.tab').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+      document.getElementById('tab-' + t.dataset.tab).classList.remove('hidden');
+    });
+  });
+}
+
+// boot
+init();
+</script>
+
+</body>
+</html>
